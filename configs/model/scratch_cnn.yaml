@@ -1,0 +1,4 @@
+model:
+  arch: scratch_cnn
+  pretrained: false
+  drop_rate: 0.2

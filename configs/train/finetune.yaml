@@ -1,0 +1,11 @@
+# Fine-tune everything; pretrained backbone at a 10x smaller LR.
+# Starting defaults, not tuned. Tune on val only, then freeze before the 3-seed runs.
+train:
+  mode: finetune
+  epochs: 15
+  lr: 3.0e-4
+  backbone_lr_mult: 0.1
+  weight_decay: 0.05
+  warmup_epochs: 1
+  label_smoothing: 0.0   # kept at 0 so calibration (ECE) reflects the raw model
+  amp: true

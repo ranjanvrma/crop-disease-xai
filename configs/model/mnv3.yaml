@@ -1,0 +1,5 @@
+# Head replaced by GAP -> single Linear(960, C) in models/factory.py (closed-form CAM).
+model:
+  arch: mobilenetv3_large_100
+  pretrained: true
+  drop_rate: 0.2

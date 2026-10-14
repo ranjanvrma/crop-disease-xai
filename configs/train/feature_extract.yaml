@@ -1,0 +1,10 @@
+# Freeze the pretrained backbone (incl. BatchNorm stats); train only the linear head.
+train:
+  mode: feature_extract
+  epochs: 10
+  lr: 1.0e-3
+  backbone_lr_mult: 0.0  # unused: backbone has no trainable params
+  weight_decay: 0.0
+  warmup_epochs: 1
+  label_smoothing: 0.0
+  amp: true

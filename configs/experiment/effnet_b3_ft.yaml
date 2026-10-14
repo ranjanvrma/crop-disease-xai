@@ -1,0 +1,2 @@
+inherits: [base.yaml, data/default.yaml, model/effnet_b3.yaml, train/finetune.yaml]
+run_name: effnet_b3_ft

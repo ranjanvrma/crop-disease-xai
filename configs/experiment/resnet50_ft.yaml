@@ -1,0 +1,2 @@
+inherits: [base.yaml, data/default.yaml, model/resnet50.yaml, train/finetune.yaml]
+run_name: resnet50_ft

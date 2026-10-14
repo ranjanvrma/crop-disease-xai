@@ -1,0 +1,2 @@
+inherits: [base.yaml, data/default.yaml, model/effnet_b0.yaml, train/feature_extract.yaml]
+run_name: effnet_b0_fe

@@ -1,0 +1,2 @@
+inherits: [base.yaml, data/default.yaml, model/scratch_cnn.yaml, train/scratch.yaml]
+run_name: scratch_cnn

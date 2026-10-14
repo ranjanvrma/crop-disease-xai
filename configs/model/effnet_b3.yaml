@@ -1,0 +1,5 @@
+# Teacher for distillation (Phase 4). Trained at 224 px like every other model, for comparability.
+model:
+  arch: efficientnet_b3
+  pretrained: true
+  drop_rate: 0.3
