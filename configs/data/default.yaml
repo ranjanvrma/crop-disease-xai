@@ -1,0 +1,23 @@
+# Data sources, split and augmentation. Paths are relative to paths.data_root.
+data:
+  plantvillage_dir: plantvillage/color          # <Class___name>/*.jpg
+  plantdoc_dirs: [plantdoc/train, plantdoc/test] # ALL of PlantDoc is field test
+  field_dir: field                               # images/<PV class>/, masks/<PV class>/
+  class_map: configs/data/plantdoc_to_plantvillage.yaml
+
+  manifest: splits/manifest_v1.csv
+  classes_file: splits/classes_v1.json
+
+  split:
+    val: 0.10        # fractions of PlantVillage (after dedup)
+    test: 0.10
+    seed: 0          # fixed: the SAME split for every training seed
+
+  dedup:
+    cross_hamming: 4 # PV images within this dHash distance of any held-out image are dropped
+
+augment:
+  crop_scale: [0.7, 1.0]
+  vflip_p: 0.5
+  jitter: 0.2
+  jitter_p: 0.5

@@ -21,3 +21,4 @@ wandb:
 
 image_size: 224
 num_workers: 2           # Colab gives 2 CPU cores
+batch_size: 64

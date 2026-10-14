@@ -9,9 +9,10 @@ description = "Crop-leaf disease detection with Grad-CAM++ explanations under mo
 requires-python = ">=3.10"
 # Core deps: enough to build splits and run the unit tests.
 dependencies = [
-    "numpy>=1.26",
+    "numpy>=2.0",       # np.bitwise_count for hash distances
     "pandas>=2.1",
     "pillow>=10.0",
+    "pyyaml>=6.0",
     "omegaconf>=2.3",
     "scikit-learn>=1.4",
     "tqdm>=4.66",
