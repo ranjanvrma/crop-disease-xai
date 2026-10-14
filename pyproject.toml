@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cropxai"
+version = "0.1.0"
+description = "Crop-leaf disease detection with Grad-CAM++ explanations under model compression, deployed on-device."
+requires-python = ">=3.10"
+# Core deps: enough to build splits and run the unit tests.
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "pillow>=10.0",
+    "omegaconf>=2.3",
+    "scikit-learn>=1.4",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+# Training / research environment (Colab). Torch is preinstalled on Colab,
+# so it is listed without a pin; the exact versions of every run are
+# captured by W&B and written into each results JSON.
+train = [
+    "torch",
+    "torchvision",
+    "timm>=1.0",
+    "albumentations>=2.0",
+    "wandb>=0.17",
+    "grad-cam>=1.5",
+    "captum>=0.7",
+    "quantus>=0.5",
+    "torch-pruning>=1.5",
+    "torchao>=0.10",
+]
+dev = ["pytest>=8"]
+# The ExecuTorch export environment is deliberately NOT an extra here:
+# it must live in its own environment. See requirements/export.txt.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

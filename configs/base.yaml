@@ -1,0 +1,23 @@
+# Shared defaults. Every experiment config inherits this first.
+project: crop-disease-xai
+run_name: unnamed        # each experiment config overrides this
+
+# Every reported number is mean ± std over these seeds.
+seeds: [0, 1, 2]
+seed: 0                  # the seed of THIS run; scripts loop over `seeds`
+deterministic: true
+
+paths:
+  # On Colab, set CROPXAI_DATA to a local-disk copy (e.g. /content/data),
+  # not a Drive path: reading ~55k small files over Drive is very slow.
+  data_root: ${oc.env:CROPXAI_DATA,data}
+  checkpoints_dir: ${oc.env:CROPXAI_CKPT,checkpoints}
+  splits_dir: splits
+  results_dir: results
+
+wandb:
+  mode: ${oc.env:WANDB_MODE,online}   # online | offline | disabled
+  entity: null
+
+image_size: 224
+num_workers: 2           # Colab gives 2 CPU cores

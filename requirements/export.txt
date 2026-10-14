@@ -1,0 +1,10 @@
+# ExecuTorch export environment — install in a SEPARATE venv/conda env,
+# never alongside the training environment (their torch pins can conflict).
+#
+# Versions are intentionally left unpinned until Phase 7. At that point:
+#   1. read https://docs.pytorch.org/executorch/stable/ for the current
+#      release and its matching torch / torchao versions,
+#   2. pin all three here,
+#   3. pin the same ExecuTorch version in android/app/build.gradle.kts
+#      (org.pytorch:executorch-android) so the .pte and runtime match.
+executorch

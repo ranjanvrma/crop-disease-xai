@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data and weights live on Drive / Hugging Face, never in git
+data/*
+!data/README.md
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.pte
+*.onnx
+wandb/
+
+# Generated
+results/figures/*.png
+results/figures/*.pdf
+!results/figures/.gitkeep
+
+# Web / Android build output
+node_modules/
+web/dist/
+android/**/build/
+android/.gradle/
+android/local.properties
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
