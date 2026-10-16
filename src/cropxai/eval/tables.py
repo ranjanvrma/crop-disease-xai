@@ -33,7 +33,7 @@ def _get(d: dict, dotted: str):
 
 
 def load_runs(metrics_dir: Path) -> list[dict]:
-    return [json.loads(p.read_text()) for p in sorted(metrics_dir.glob("*.json"))]
+    return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(metrics_dir.glob("*.json"))]
 
 
 def format_mean_std(values: list[float], decimals: int, expected_n: int) -> str:

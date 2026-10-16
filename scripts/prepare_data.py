@@ -27,10 +27,10 @@ def main() -> None:
     manifest.to_csv(manifest_path, index=False)
 
     classes = sorted(manifest.loc[manifest["source"] == "plantvillage", "label"].unique())
-    resolve_path(cfg.data.classes_file).write_text(json.dumps(classes, indent=2))
+    resolve_path(cfg.data.classes_file).write_text(json.dumps(classes, indent=2), encoding="utf-8")
 
     summary_path = manifest_path.with_name(manifest_path.stem + "_summary.json")
-    summary_path.write_text(json.dumps(summary, indent=2))
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     print(f"\nWrote {manifest_path}")
 

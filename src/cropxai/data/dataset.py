@@ -51,7 +51,7 @@ class LeafDataset(Dataset):
 
 def load_classes(cfg: DictConfig) -> list[str]:
     """The ordered class list written alongside the manifest."""
-    return json.loads(resolve_path(cfg.data.classes_file).read_text())
+    return json.loads(resolve_path(cfg.data.classes_file).read_text(encoding="utf-8"))
 
 
 def make_loader(cfg: DictConfig, split: str, allow_heldout: bool = False) -> DataLoader:

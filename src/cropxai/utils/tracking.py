@@ -76,5 +76,5 @@ def save_metrics(cfg: DictConfig, metrics: dict[str, Any], kind: str) -> Path:
         },
         "config": OmegaConf.to_container(cfg, resolve=True),
     }
-    out_path.write_text(json.dumps(record, indent=2))
+    out_path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     return out_path

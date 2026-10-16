@@ -35,7 +35,7 @@ def scan_plantvillage(data_root: Path, pv_dir: str) -> pd.DataFrame:
 
 def load_class_map(path: Path) -> dict[str, str | None]:
     """PlantDoc folder name -> PlantVillage class (``None`` = excluded)."""
-    return yaml.safe_load(path.read_text())["plantdoc_to_plantvillage"]
+    return yaml.safe_load(path.read_text(encoding="utf-8"))["plantdoc_to_plantvillage"]
 
 
 def scan_plantdoc(
