@@ -34,3 +34,9 @@ android/local.properties
 Thumbs.db
 .idea/
 .vscode/
+
+# Dataset archives / partial browser downloads
+*.zip
+*.crdownload
+*.tar
+*.tar.gz
