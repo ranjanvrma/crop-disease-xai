@@ -30,8 +30,9 @@ def code(s: str) -> None:
 md("""
 # crop-disease-xai — Colab runner
 
-**Edit the settings cell below, then `Runtime → Run all`.** Every step skips itself when its result already exists,
-so re-running is always safe:
+**Just press `Runtime → Run all`. Nothing to edit.** It works through every experiment and seed in `EXPS`, in order.
+When a Colab session ends, open a new one and press Run all again: finished work is skipped and it resumes
+where it stopped. The last cell shows overall progress. Every step skips itself when its result already exists:
 
 | step | runs when |
 |---|---|
@@ -45,9 +46,13 @@ Dataset zips in `MyDrive/cropxai/raw/` (see `data/README.md`).
 """)
 
 code("""
-# ===================== SETTINGS: edit, then Runtime -> Run all =====================
-EXP   = "mnv3_fe"   # any file name in configs/experiment/ (without .yaml)
-SEEDS = [0]         # one seed ~20-40 min; [0, 1, 2] for the full set
+# ============ SETTINGS: normally nothing to change, just Runtime -> Run all ============
+# The whole baseline queue, cheapest first. Finished experiments/seeds are skipped.
+EXPS = [
+    "mnv3_fe", "effnet_b0_fe", "scratch_cnn", "mnv3_ft", "effnet_b0_ft",
+    "resnet50_fe", "resnet50_ft", "effnet_b3_ft", "deit_s_fe", "deit_s_ft",
+]
+SEEDS = [0, 1, 2]
 
 TRAIN    = True     # train seeds that haven't finished (set False to only re-use existing checkpoints)
 EVALUATE = True     # in-domain test + PlantDoc field accuracy, size, latency
@@ -157,32 +162,40 @@ sys.path.insert(0, f"{REPO}/src")   # a fresh editable install isn't importable 
 from cropxai.train.loop import checkpoint_path, complete_marker, is_trained
 from cropxai.utils.config import load_config
 
-cfg_path = f"configs/experiment/{EXP}.yaml"
-assert os.path.exists(cfg_path), f"No such experiment: {cfg_path}"
-is_cnn = not EXP.startswith("deit")      # Grad-CAM++ steps are for CNNs only
 ovr = f"paths.results_dir={RESULTS}"
 
 def mtime(path):
     return os.path.getmtime(path) if os.path.exists(path) else 0.0
 
-for seed in SEEDS:
+def stale_result(kind, exp, seed, cfg, ckpt):
+    \"\"\"True if this result must be (re)computed for the current checkpoint and settings.\"\"\"
+    result = f"{RESULTS}/metrics/{kind}/{exp}_seed{seed}.json"
+    if FORCE or mtime(result) < mtime(ckpt):
+        return True
+    if kind in ("explanation", "closed_form"):   # explanation settings changed since it was written?
+        saved = json.load(open(result))["config"].get("explain")
+        return saved != OmegaConf.to_container(cfg.explain, resolve=True)
+    return False
+
+def run_seed(exp, seed):
+    cfg_path = f"configs/experiment/{exp}.yaml"
     cfg = load_config(cfg_path, [f"seed={seed}"])
     ckpt = str(checkpoint_path(cfg))
-    trained = is_trained(cfg)            # finished AND trained with the current settings
-    print(f"\\n========== {EXP} seed {seed} ==========")
+    is_cnn = not exp.startswith("deit")      # Grad-CAM++ steps are for CNNs only
+    print(f"\\n========== {exp} seed {seed} ==========")
 
+    trained = is_trained(cfg)                # finished AND trained with the current settings
     if TRAIN and (FORCE or not trained):
         if complete_marker(cfg).exists() and not trained:
             print("train: settings changed since this seed was trained -> retraining")
         sh(f"python scripts/train.py --config {cfg_path} --seed {seed} {ovr}")
     elif trained:
-        print("train: already finished with these settings, skipping")
+        print("train: done, skipping")
     elif os.path.exists(ckpt):
         print("train: skipped; NOTE this checkpoint is outdated or from an unfinished run (preview only)")
-
     if not os.path.exists(ckpt):
         print("no checkpoint for this seed; nothing else to do")
-        continue
+        return
 
     steps = [
         ("evaluate", EVALUATE, "accuracy", "evaluate.py"),
@@ -190,46 +203,36 @@ for seed in SEEDS:
         ("explain", EXPLAIN and is_cnn, "explanation", "explain.py"),
     ]
     for name, wanted, kind, script in steps:
-        result = f"{RESULTS}/metrics/{kind}/{EXP}_seed{seed}.json"
         if not wanted:
             continue
-        stale = FORCE or mtime(result) < mtime(ckpt)
-        if not stale and kind in ("explanation", "closed_form"):
-            # Also redo it if the explanation settings changed since the result was written.
-            saved = json.load(open(result))["config"].get("explain")
-            stale = saved != OmegaConf.to_container(cfg.explain, resolve=True)
-            if stale:
-                print(f"{name}: explanation settings changed -> recomputing")
-        if stale:
+        if stale_result(kind, exp, seed, cfg, ckpt):
             sh(f"python scripts/{script} --config {cfg_path} --seed {seed} {ovr}")
         else:
-            print(f"{name}: up to date, skipping")
+            print(f"{name}: done, skipping")
+
+for exp in EXPS:
+    assert os.path.exists(f"configs/experiment/{exp}.yaml"), f"No such experiment: {exp}"
+for exp in EXPS:
+    for seed in SEEDS:
+        run_seed(exp, seed)
+print("\\nQueue finished: every experiment and seed is done.")
 """)
 
 md("## Results")
 
 code("""
-from IPython.display import Image, display
-
+# Heatmap figures are saved on Drive: MyDrive/cropxai/results/figures/heatmaps/
 sh(f"python scripts/make_tables.py --results-dir {RESULTS}")
 
-def load(kind, seed):
-    p = f"{RESULTS}/metrics/{kind}/{EXP}_seed{seed}.json"
-    return json.load(open(p))["metrics"] if os.path.exists(p) else None
-
-for seed in SEEDS:
-    print(f"\\n----- {EXP} seed {seed} -----")
-    acc, cf = load("accuracy", seed), load("closed_form", seed)
-    if acc:
-        print(f"PlantVillage test top-1 {acc['test']['top1']:.4f} | "
-              f"field strict {acc['field']['strict_top1']:.4f} | field restricted {acc['field']['restricted_top1']:.4f}")
-    if cf:
-        print(f"closed-form vs library: max |diff| {cf['max_abs_diff']:.2e}, mean Pearson r {cf['pearson_r_mean']:.6f}")
-    for split in ["test", "field_test"]:
-        fig = f"{RESULTS}/figures/heatmaps/{EXP}_seed{seed}_{split}.png"
-        if os.path.exists(fig):
-            print(split)
-            display(Image(fig, width=900))
+print("\\nProgress (seeds fully done per experiment):")
+total = done_total = 0
+for exp in EXPS:
+    kinds = ["accuracy"] + ([] if exp.startswith("deit") else ["closed_form", "explanation"])
+    done = sum(all(os.path.exists(f"{RESULTS}/metrics/{k}/{exp}_seed{s}.json") for k in kinds) for s in SEEDS)
+    total += len(SEEDS)
+    done_total += done
+    print(f"  {exp:14s} {done}/{len(SEEDS)}  {'done' if done == len(SEEDS) else ''}")
+print(f"  overall: {done_total}/{total} seeds")
 """)
 
 nb = {"cells": cells,
