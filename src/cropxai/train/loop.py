@@ -1,5 +1,6 @@
 """Supervised training: feature extraction or fine-tuning, one seed per call."""
 
+import json
 import math
 from pathlib import Path
 
@@ -18,6 +19,11 @@ from cropxai.utils.tracking import init_wandb
 
 def checkpoint_path(cfg: DictConfig) -> Path:
     return resolve_path(cfg.paths.checkpoints_dir) / cfg.run_name / f"seed{cfg.seed}" / "best.pt"
+
+
+def complete_marker(cfg: DictConfig) -> Path:
+    """Written only after the last epoch, so an interrupted run is never mistaken for a finished one."""
+    return checkpoint_path(cfg).with_name("complete.json")
 
 
 def get_device() -> torch.device:
@@ -94,6 +100,7 @@ def fit(cfg: DictConfig) -> dict:
 
     ckpt = checkpoint_path(cfg)
     ckpt.parent.mkdir(parents=True, exist_ok=True)
+    complete_marker(cfg).unlink(missing_ok=True)  # a retrain invalidates the old marker
     run = init_wandb(cfg, job_type="train")
     best = {"val_macro_f1": -1.0}
 
@@ -114,6 +121,7 @@ def fit(cfg: DictConfig) -> dict:
                 "best": best,
             }, ckpt)
 
+    complete_marker(cfg).write_text(json.dumps(best | {"epochs": t.epochs}, indent=2), encoding="utf-8")
     run.summary.update({f"best/{k}": v for k, v in best.items()})
     run.finish()
     return best | {"checkpoint": str(ckpt)}

@@ -43,6 +43,7 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
 
     best = fit(cfg)
     assert Path(best["checkpoint"]).exists()
+    assert Path(best["checkpoint"]).with_name("complete.json").exists()
 
     metrics = evaluate(cfg)
     assert 0.0 <= metrics["test"]["top1"] <= 1.0
