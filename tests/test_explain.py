@@ -75,3 +75,42 @@ def test_localisation():
     miss[8, 8] = 1.0
     m = localisation_metrics(np.stack([cam, miss]), np.stack([mask, mask]), 0.5)
     assert m["pointing_game"] == 0.5 and m["n_masks"] == 2
+
+
+def test_linear_impute_matches_library():
+    """Batched CG imputation == pytorch-grad-cam's per-image scipy solve."""
+    from pytorch_grad_cam.metrics.road import NoisyLinearImputer
+
+    from cropxai.eval.faithfulness import linear_impute
+
+    gen = torch.Generator().manual_seed(0)
+    images = torch.nn.functional.interpolate(torch.rand(2, 3, 8, 8, generator=gen), size=48, mode="bilinear")
+    keep = torch.rand(2, 48, 48, generator=gen) > 0.6           # remove ~60 % of pixels
+    keep[1, 10:40, 5:45] = False                                 # plus one large hole
+
+    ours = linear_impute(images, keep)
+    lib = torch.stack([NoisyLinearImputer(noise=0.0)(img, k.float()) for img, k in zip(images, keep)])
+    assert torch.allclose(ours, lib, atol=1e-4)
+
+
+def test_road_score_matches_library(monkeypatch):
+    from pytorch_grad_cam.metrics import road
+    from pytorch_grad_cam.metrics.road import ROADCombined
+    from pytorch_grad_cam.utils.model_targets import ClassifierOutputSoftmaxTarget
+
+    from cropxai.eval.faithfulness import road_score
+
+    original_init = road.NoisyLinearImputer.__init__
+    monkeypatch.setattr(road.NoisyLinearImputer, "__init__", lambda self, noise=0.0, weighting=None: original_init(self, 0.0))
+
+    torch.manual_seed(0)
+    model = build_model(OmegaConf.create({"arch": "scratch_cnn", "pretrained": False, "drop_rate": 0.0}), 5).eval()
+    images = torch.randn(3, 3, 48, 48)
+    cams = np.random.default_rng(0).random((3, 48, 48)).astype(np.float32)
+    classes = torch.tensor([0, 2, 4])
+
+    ours = road_score(model, images, cams, classes, [20, 50, 80], noise=0.0)
+    targets = [ClassifierOutputSoftmaxTarget(int(c)) for c in classes]
+    with torch.no_grad():
+        lib = ROADCombined(percentiles=[20, 50, 80])(images, cams, targets, model)
+    np.testing.assert_allclose(ours, lib, atol=1e-4)

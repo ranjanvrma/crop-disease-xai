@@ -11,8 +11,8 @@ explain:
     n_steps: 20
     blur_kernel: 21              # insertion starts from a Gaussian-blurred image
     blur_sigma: 5.0
-  road_percentiles: [20, 50, 80]
-  road_n_images: 50              # ROAD imputation: a CPU sparse solve per image x percentile x order
+  road_percentiles: [20, 40, 60, 80]
+  road_n_images: 100             # imputation is batched on the GPU (eval/faithfulness.py)
   iou_threshold: 0.5             # heatmap >= threshold counts as "highlighted"
   n_figure_examples: 8
   verify_n_images: 64            # closed-form vs library comparison

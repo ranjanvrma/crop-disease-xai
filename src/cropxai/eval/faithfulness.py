@@ -7,8 +7,6 @@ dataset mean (0 in normalised space), which avoids out-of-range colours.
 
 import numpy as np
 import torch
-from pytorch_grad_cam.metrics.road import ROADCombined
-from pytorch_grad_cam.utils.model_targets import ClassifierOutputSoftmaxTarget
 from torch import nn
 from torch.nn import functional as F
 
@@ -87,14 +85,90 @@ def average_drop_and_increase(
     return drop, increase
 
 
-def road_score(
-    model: nn.Module, images: torch.Tensor, cams: np.ndarray, classes: torch.Tensor, percentiles: list[int]
-) -> np.ndarray:
-    """ROAD combined score per image (Rong et al.): (LeRF - MoRF) / 2, higher is better.
+# Neighbour weights of ROAD's noisy linear imputation (Rong et al., 2022):
+# 1/6 for edge neighbours, 1/12 for corner neighbours.
+ROAD_KERNEL = torch.tensor([[1 / 12, 1 / 6, 1 / 12], [1 / 6, 0.0, 1 / 6], [1 / 12, 1 / 6, 1 / 12]])
 
-    Uses noisy linear imputation instead of a constant baseline, so removed
-    pixels don't leak their location through artefacts.
+
+@torch.no_grad()
+def linear_impute(images: torch.Tensor, keep: torch.Tensor, tol: float = 1e-6, max_iter: int = 2000) -> torch.Tensor:
+    """Fill removed pixels with ROAD's linear interpolation, batched on the image's device.
+
+    Every removed pixel must equal the weighted mean of its in-image 8
+    neighbours (known or removed), which is the same sparse system
+    pytorch-grad-cam solves per image with scipy. Here it is solved for the
+    whole batch at once by conjugate gradient, using convolutions.
+
+    Args:
+        images: (N, C, H, W).
+        keep: (N, H, W) bool, True where the pixel is kept.
+    Returns the images with removed pixels interpolated (no noise added).
     """
-    targets = [ClassifierOutputSoftmaxTarget(int(c)) for c in classes]
-    with torch.no_grad():
-        return np.asarray(ROADCombined(percentiles=list(percentiles))(images, cams, targets, model), dtype=np.float64)
+    n, c, h, w = images.shape
+    kernel = ROAD_KERNEL.to(images).view(1, 1, 3, 3)
+    known = keep.to(images).unsqueeze(1).expand(n, c, h, w).reshape(n * c, 1, h, w)
+    miss = 1 - known
+    x = images.reshape(n * c, 1, h, w)
+
+    def neighbours(t: torch.Tensor) -> torch.Tensor:
+        return F.conv2d(t, kernel, padding=1)  # zero padding: off-image neighbours don't count
+
+    weight_sum = neighbours(torch.ones(1, 1, h, w, device=images.device, dtype=images.dtype))
+
+    def system(u: torch.Tensor) -> torch.Tensor:  # SPD operator on the removed pixels
+        return (weight_sum * u - neighbours(u)) * miss
+
+    rhs = neighbours(x * known) * miss
+    u = torch.zeros_like(x)
+    r = rhs.clone()
+    p = r.clone()
+    rs = (r * r).sum(dim=(1, 2, 3), keepdim=True)
+    rhs_norm = rs.sqrt().clamp(min=1e-12)
+    for i in range(max_iter):
+        ap = system(p)
+        alpha = rs / (p * ap).sum(dim=(1, 2, 3), keepdim=True).clamp(min=1e-30)
+        u = u + alpha * p
+        r = r - alpha * ap
+        rs_new = (r * r).sum(dim=(1, 2, 3), keepdim=True)
+        if i % 10 == 0 and (rs_new.sqrt() / rhs_norm).max() < tol:
+            break
+        p = r + (rs_new / rs.clamp(min=1e-30)) * p
+        rs = rs_new
+    return (x * known + u * miss).reshape(n, c, h, w)
+
+
+@torch.no_grad()
+def road_score(
+    model: nn.Module,
+    images: torch.Tensor,
+    cams: np.ndarray,
+    classes: torch.Tensor,
+    percentiles: list[int],
+    noise: float = 0.01,
+    seed: int = 0,
+    batch_size: int = 64,
+) -> np.ndarray:
+    """ROAD combined score per image (Rong et al.): mean over percentiles of (LeRF - MoRF) / 2.
+
+    At percentile p, MoRF removes the pixels whose heatmap value is at or
+    above the p-th percentile (most relevant first); LeRF does the same on
+    1 - heatmap. Removed pixels are filled by noisy linear imputation, so they
+    don't leak their location through artefacts. Higher is better. Same
+    definition as pytorch-grad-cam's ROADCombined, computed on the GPU.
+    """
+    cam = torch.from_numpy(cams).to(images.device).flatten(1)            # (N, H*W)
+    gen = torch.Generator(device=images.device).manual_seed(seed)
+    n, h, w = cams.shape
+    scores = torch.zeros(n, device=images.device)
+    for pct in percentiles:
+        for sign, relevance in ((-1.0, cam), (1.0, 1 - cam)):             # MoRF, LeRF
+            threshold = torch.quantile(relevance, pct / 100, dim=1, keepdim=True)
+            keep = (relevance < threshold).view(n, h, w)
+            for start in range(0, n, batch_size):
+                sl = slice(start, start + batch_size)
+                filled = linear_impute(images[sl], keep[sl])
+                removed = (~keep[sl]).unsqueeze(1).to(images)
+                filled = filled + noise * removed * torch.randn(
+                    filled.shape, generator=gen, device=images.device, dtype=images.dtype)
+                scores[sl] += sign * class_prob(model, filled, classes[sl]) / 2
+    return (scores / len(percentiles)).cpu().numpy().astype(np.float64)

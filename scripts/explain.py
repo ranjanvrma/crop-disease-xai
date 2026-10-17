@@ -10,7 +10,10 @@ masks exist) pointing game + IoU. Writes
 """
 
 import argparse
+import os
 import time
+
+os.environ.setdefault("TQDM_DISABLE", "1")  # Score-CAM's per-batch progress bars flood the log
 
 import numpy as np
 import torch
@@ -34,11 +37,7 @@ def method_metrics(model, images, cams, preds, masks, has_mask, e) -> dict:
                for img, cam, c in zip(images, cams, preds)]
     drop, increase = average_drop_and_increase(model, images, cams, preds)
     n_road = min(e.road_n_images, len(images))
-    road = np.concatenate([
-        road_score(model, images[i:min(i + e.batch_size, n_road)], cams[i:min(i + e.batch_size, n_road)],
-                   preds[i:min(i + e.batch_size, n_road)], e.road_percentiles)
-        for i in range(0, n_road, e.batch_size)
-    ])
+    road = road_score(model, images[:n_road], cams[:n_road], preds[:n_road], e.road_percentiles)
     out = {
         "deletion_auc": float(np.mean([x[0] for x in del_ins])),
         "insertion_auc": float(np.mean([x[1] for x in del_ins])),
