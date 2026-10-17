@@ -45,3 +45,17 @@ def test_format_mean_std():
 def test_replace_between_markers():
     text = "a\n<!-- t:start -->\nold\n<!-- t:end -->\nb"
     assert replace_between_markers(text, "t", "new") == "a\n<!-- t:start -->\nnew\n<!-- t:end -->\nb"
+
+
+def test_explanation_table_rows_per_method():
+    from cropxai.eval.tables import explanation_table
+
+    def run(seed, del_auc):
+        m = {"deletion_auc": del_auc, "insertion_auc": 0.9, "average_drop": 10.0,
+             "increase_in_confidence": 20.0, "road": 0.1}
+        return {"run_name": "mnv3_fe", "seed": seed, "metrics": {"test": {"gradcampp": m}, "field_test": {}}}
+
+    table = explanation_table([run(0, 0.1), run(1, 0.3)])
+    assert list(table["Method"]) == ["Grad-CAM++"]                # methods without results are skipped
+    assert table.loc[0, "Del. AUC ↓ (test)"] == "0.200 ± 0.141 (n=2)"
+    assert table.loc[0, "IoU ↑ (field)"] == "—"                    # no masks -> empty, not invented

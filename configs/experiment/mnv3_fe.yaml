@@ -1,2 +1,2 @@
-inherits: [base.yaml, data/default.yaml, model/mnv3.yaml, train/feature_extract.yaml]
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/feature_extract.yaml]
 run_name: mnv3_fe

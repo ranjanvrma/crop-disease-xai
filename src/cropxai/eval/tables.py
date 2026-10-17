@@ -23,6 +23,22 @@ TABLE1 = [
     ("Desktop CPU latency (ms)", "latency_desktop_cpu.median_ms", 1, 1),
 ]
 
+# Table 2 columns; "{m}" is replaced by the CAM method. Faithfulness is on the
+# in-domain test sample; localisation needs lesion masks, which exist only on
+# the field set.
+TABLE2 = [
+    ("Del. AUC ↓ (test)", "test.{m}.deletion_auc", 1, 3),
+    ("Ins. AUC ↑ (test)", "test.{m}.insertion_auc", 1, 3),
+    ("Avg. Drop % ↓ (test)", "test.{m}.average_drop", 1, 1),
+    ("Inc. Conf. % ↑ (test)", "test.{m}.increase_in_confidence", 1, 1),
+    ("ROAD ↑ (test)", "test.{m}.road", 1, 3),
+    ("Del. AUC ↓ (field)", "field_test.{m}.deletion_auc", 1, 3),
+    ("Ins. AUC ↑ (field)", "field_test.{m}.insertion_auc", 1, 3),
+    ("Pointing ↑ (field)", "field_test.{m}.pointing_game", 100, 1),
+    ("IoU ↑ (field)", "field_test.{m}.iou", 1, 3),
+]
+METHOD_NAMES = {"gradcampp": "Grad-CAM++", "gradcam": "Grad-CAM", "scorecam": "Score-CAM"}
+
 
 def _get(d: dict, dotted: str):
     for key in dotted.split("."):
@@ -50,16 +66,32 @@ def format_mean_std(values: list[float], decimals: int, expected_n: int) -> str:
     return cell
 
 
+def _row(label: dict, group: list[dict], columns: list, expected_n: int, method: str = "") -> dict:
+    row = dict(label)
+    for header, path, scale, dec in columns:
+        path = path.format(m=method)
+        vals = [(_get(m, path) * scale) if _get(m, path) is not None else None for m in group]
+        row[header] = format_mean_std(vals, dec, expected_n)
+    return row
+
+
 def accuracy_table(runs: list[dict], expected_n: int = 3) -> pd.DataFrame:
     """Table 1: one row per experiment (run_name), seeds aggregated."""
     rows = []
     for run_name in sorted({r["run_name"] for r in runs}):
         group = [r["metrics"] for r in runs if r["run_name"] == run_name]
-        row = {"Model": run_name}
-        for header, path, scale, dec in TABLE1:
-            vals = [(_get(m, path) * scale) if _get(m, path) is not None else None for m in group]
-            row[header] = format_mean_std(vals, dec, expected_n)
-        rows.append(row)
+        rows.append(_row({"Model": run_name}, group, TABLE1, expected_n))
+    return pd.DataFrame(rows)
+
+
+def explanation_table(runs: list[dict], expected_n: int = 3) -> pd.DataFrame:
+    """Table 2: one row per (experiment, CAM method), seeds aggregated."""
+    rows = []
+    for run_name in sorted({r["run_name"] for r in runs}):
+        group = [r["metrics"] for r in runs if r["run_name"] == run_name]
+        for method, name in METHOD_NAMES.items():
+            if any(_get(m, f"test.{method}") for m in group):
+                rows.append(_row({"Model": run_name, "Method": name}, group, TABLE2, expected_n, method))
     return pd.DataFrame(rows)
 
 

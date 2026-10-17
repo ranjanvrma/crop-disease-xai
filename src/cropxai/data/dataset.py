@@ -84,3 +84,46 @@ def make_loader(cfg: DictConfig, split: str, allow_heldout: bool = False) -> Dat
         worker_init_fn=seed_worker,
         generator=make_generator(cfg.seed),
     )
+
+
+def load_examples(
+    cfg: DictConfig, split: str, n: int, allow_heldout: bool = False
+) -> tuple[torch.Tensor, torch.Tensor, list[str], np.ndarray | None, np.ndarray]:
+    """A fixed sample of ``n`` images (eval transform) for explanation metrics.
+
+    Images with lesion masks come first, so every mask is used; the rest is a
+    seeded random sample (same images for every model and compression level).
+
+    Returns images (N,3,H,W), labels (N,), paths, masks (N,H,W) or None,
+    and a boolean array saying which rows have a real mask.
+    """
+    from cropxai.data.transforms import eval_transform
+
+    check_split_access(split, allow_heldout)
+    manifest = load_manifest(cfg.data.manifest)
+    assert_no_field_leak(manifest, cfg.data.dedup.cross_hamming)
+    rows = manifest[manifest["split"] == split]
+    with_mask = rows[rows["mask_path"] != ""]
+    rest = rows[rows["mask_path"] == ""]
+    n_rest = max(0, min(n - len(with_mask), len(rest)))
+    rows = pd.concat([with_mask.head(n), rest.sample(n_rest, random_state=cfg.explain.sample_seed)]).head(n)
+
+    class_to_idx = {c: i for i, c in enumerate(load_classes(cfg))}
+    data_root = resolve_path(cfg.paths.data_root)
+    transform = eval_transform(cfg)
+    images, masks = [], []
+    for row in rows.itertuples():
+        with Image.open(data_root / row.path) as img:
+            image = np.asarray(img.convert("RGB"))
+        if row.mask_path:
+            with Image.open(data_root / row.mask_path) as m:
+                mask = (np.asarray(m.convert("L").resize(img.size)) > 127).astype(np.uint8)
+        else:
+            mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        out = transform(image=image, mask=mask)
+        images.append(out["image"])
+        masks.append(np.asarray(out["mask"]))
+
+    has_mask = (rows["mask_path"] != "").to_numpy()
+    labels = torch.tensor([class_to_idx[label] for label in rows["label"]])
+    return torch.stack(images), labels, rows["path"].tolist(), (np.stack(masks) if has_mask.any() else None), has_mask

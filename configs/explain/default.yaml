@@ -1,0 +1,17 @@
+# Explanation evaluation (Phase 3, reused unchanged at every compression level).
+explain:
+  splits: [test, field_test]     # field_test images with lesion masks are always included
+  n_images: 300                  # per split; same seeded sample for every model
+  sample_seed: 0
+  methods: [gradcampp, gradcam, scorecam]
+  scorecam_n_images: 100         # Score-CAM needs one forward pass per channel: slow
+  batch_size: 32
+  deletion:
+    n_steps: 20
+    blur_kernel: 21              # insertion starts from a Gaussian-blurred image
+    blur_sigma: 5.0
+  road_percentiles: [20, 40, 60, 80]
+  road_n_images: 100             # ROAD imputation is a CPU sparse solve per image: slow
+  iou_threshold: 0.5             # heatmap >= threshold counts as "highlighted"
+  n_figure_examples: 8
+  verify_n_images: 64            # closed-form vs library comparison

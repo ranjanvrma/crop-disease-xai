@@ -117,3 +117,12 @@ def fit(cfg: DictConfig) -> dict:
     run.summary.update({f"best/{k}": v for k, v in best.items()})
     run.finish()
     return best | {"checkpoint": str(ckpt)}
+
+
+def load_trained(cfg: DictConfig, device: torch.device) -> tuple[nn.Module, list[str], dict]:
+    """Rebuild the model for ``cfg`` and load its best checkpoint (eval mode)."""
+    ckpt = torch.load(checkpoint_path(cfg), map_location="cpu", weights_only=False)
+    # Weights come from the checkpoint, so skip downloading ImageNet weights.
+    model = build_model(OmegaConf.merge(cfg.model, {"pretrained": False}), num_classes=len(ckpt["classes"]))
+    model.load_state_dict(ckpt["state_dict"])
+    return model.to(device).eval(), ckpt["classes"], ckpt

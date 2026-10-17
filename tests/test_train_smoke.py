@@ -1,4 +1,4 @@
-"""End-to-end smoke test: manifest -> train 1 epoch -> evaluate -> results JSON.
+"""End-to-end smoke test: manifest -> train -> evaluate -> explain -> verify -> JSON.
 
 Checks the plumbing only, on random synthetic images. Its numbers mean nothing.
 """
@@ -16,6 +16,8 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
     from evaluate import evaluate
+    from explain import explain
+    from verify_closed_form import verify
 
     from cropxai.train.loop import fit
 
@@ -30,6 +32,8 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
         f"data.classes_file={(work / 'classes.json').as_posix()}",
         "train.epochs=1", "train.warmup_epochs=1", "image_size=32", "batch_size=8",
         "num_workers=0", "wandb.mode=disabled",
+        "explain.n_images=6", "explain.scorecam_n_images=3", "explain.road_n_images=3",
+        "explain.n_figure_examples=2", "explain.verify_n_images=4", "explain.batch_size=4",
     ])
 
     manifest, _ = build_manifest(cfg)
@@ -46,3 +50,15 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
     out = work / "results/metrics/accuracy/scratch_cnn_seed0.json"
     record = json.loads(out.read_text())
     assert record["config"]["run_name"] == "scratch_cnn"
+
+    explanation = explain(cfg)
+    for split in ["test", "field_test"]:
+        for method in ["gradcampp", "gradcam", "scorecam"]:
+            m = explanation[split][method]
+            assert 0.0 <= m["deletion_auc"] <= 1.0 and 0.0 <= m["insertion_auc"] <= 1.0
+    assert explanation["field_test"]["n_masks"] == 1               # the synthetic field photo has a mask
+    assert "pointing_game" in explanation["field_test"]["gradcampp"]
+    assert (work / "results/figures/heatmaps/scratch_cnn_seed0_field_test.png").exists()
+
+    check = verify(cfg)
+    assert check["max_abs_diff"] < 1e-4                            # closed form == library

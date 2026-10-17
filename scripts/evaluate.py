@@ -10,13 +10,11 @@ once per finished experiment, never to choose hyperparameters. Writes
 import argparse
 
 import torch
-from omegaconf import OmegaConf
 
 from cropxai.data.dataset import make_loader
 from cropxai.eval.classification import classification_metrics, field_metrics, predict
 from cropxai.eval.efficiency import count_params, measure_latency, state_dict_size_mb
-from cropxai.models import build_model
-from cropxai.train.loop import checkpoint_path, get_device
+from cropxai.train.loop import get_device, load_trained
 from cropxai.utils.config import load_config
 from cropxai.utils.seed import seed_everything
 from cropxai.utils.tracking import save_metrics
@@ -25,13 +23,7 @@ from cropxai.utils.tracking import save_metrics
 def evaluate(cfg) -> dict:
     seed_everything(cfg.seed, cfg.deterministic)
     device = get_device()
-    ckpt = torch.load(checkpoint_path(cfg), map_location="cpu", weights_only=False)
-
-    # Weights come from the checkpoint, so skip downloading ImageNet weights.
-    model_cfg = OmegaConf.merge(cfg.model, {"pretrained": False})
-    model = build_model(model_cfg, num_classes=len(ckpt["classes"]))
-    model.load_state_dict(ckpt["state_dict"])
-    model.to(device).eval()
+    model, _, ckpt = load_trained(cfg, device)
 
     test = classification_metrics(*predict(model, make_loader(cfg, "test"), device))
     field = field_metrics(*predict(model, make_loader(cfg, "field_test", allow_heldout=True), device))

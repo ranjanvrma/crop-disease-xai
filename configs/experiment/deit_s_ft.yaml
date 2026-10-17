@@ -1,2 +1,2 @@
-inherits: [base.yaml, data/default.yaml, model/deit_s.yaml, train/finetune.yaml]
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/deit_s.yaml, train/finetune.yaml]
 run_name: deit_s_ft
