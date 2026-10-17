@@ -25,7 +25,7 @@ with a closed-form, gradient-free Grad-CAM++ that runs in a single forward pass.
 - [Getting started](#getting-started)
 - [Reproducibility](#reproducibility)
 - [Repository layout](#repository-layout)
-- [Roadmap](#roadmap)
+- [Project status & plan](#project-status--plan)
 - [Datasets](#datasets)
 
 ## Overview
@@ -173,15 +173,98 @@ research/     paper (LaTeX) and research notes
 tests/        unit + end-to-end tests on synthetic data
 ```
 
-## Roadmap
-- [x] **Data:** loaders, deduplication, stratified split, field-leak guard
-- [x] **Baselines:** scratch CNN, ResNet-50, EfficientNet-B0/B3, MobileNetV3 (single-linear head), DeiT-S; feature extraction and fine-tuning
-- [x] **Explainability:** Grad-CAM++ / Grad-CAM / Score-CAM, faithfulness and localisation metrics, closed-form Grad-CAM++
-- [ ] **Baseline experiments:** all models × 3 seeds *(in progress)*
-- [ ] **Compression:** knowledge distillation, structured pruning (30/50/70%), INT8 quantization
-- [ ] **Core experiment:** explanation quality and stability at every compression level
-- [ ] **On-device:** ExecuTorch export, Android app (CameraX, heatmap overlay, "unsure" state), Pixel 6a benchmarks
-- [ ] **Release:** results dashboard, paper, trained weights, lesion annotations
+## Project status & plan
+
+*Last updated: 17 October 2026.*
+
+| Phase | What | Status |
+|---|---|---|
+| 1 | Data pipeline and field-leak guard | ✅ Done |
+| 2 | Models, training and evaluation code | ✅ Done |
+| 3 | Explanations and explanation metrics | ✅ Done |
+| — | Baseline experiments (10 models × 3 seeds) | 🟡 In progress: 7 / 30 seeds |
+| 4 | Compression pipeline (KD → pruning → INT8) | ⬜ Not started |
+| 5 | Core experiment: explanations under compression | ⬜ Not started |
+| 6 | On-device closed-form Grad-CAM++ | 🟡 Method done and verified; export pending |
+| 7 | ExecuTorch export, Android app, phone benchmarks | ⬜ Not started |
+| 8 | Results dashboard, paper, release | ⬜ Not started |
+
+### ✅ Done
+
+**Phase 1: Data**
+- [x] Loaders for PlantVillage (training), PlantDoc and own field photos (field test only), with optional lesion masks
+- [x] PlantDoc → PlantVillage class mapping that fails loudly on any unmapped class
+- [x] Perceptual-hash deduplication: exact duplicates removed; PlantVillage images that near-duplicate a field image are dropped
+- [x] Stratified 80/10/10 split, pinned in `splits/` (43,424 train / 5,428 val / 5,428 test / 2,522 PlantDoc field test)
+- [x] Field-leak guard, checked when the split is built and every time a loader is created
+
+**Phase 2: Models, training, evaluation**
+- [x] Scratch CNN, ResNet-50, EfficientNet-B0/B3, MobileNetV3 (head replaced by GAP + one linear layer), DeiT-S
+- [x] Feature extraction (frozen backbone) and fine-tuning (lower learning rate for the backbone)
+- [x] Evaluation: top-1, macro-F1, calibration (ECE), field accuracy (strict and restricted), size, desktop latency
+- [x] Training that resumes after a disconnect, and skips seeds already finished with the current settings
+- [x] Colab runner: one *Run all* works through the whole experiment queue
+
+**Phase 3: Explanations**
+- [x] Grad-CAM++, Grad-CAM and Score-CAM on the layer that feeds global average pooling
+- [x] Faithfulness metrics (deletion/insertion AUC, Average Drop, Increase in Confidence, ROAD on the GPU) and localisation metrics (pointing game, IoU)
+- [x] Closed-form, gradient-free Grad-CAM++, tested equal to the library version for every CNN and confirmed on trained checkpoints
+- [x] Automatic README tables from the results files
+
+### 🟡 In progress: baseline experiments
+
+Queue order, chosen so the models that compression depends on finish first:
+
+| Experiment | Purpose | Seeds done |
+|---|---|---|
+| `mnv3_fe`, `effnet_b0_fe` | lightweight students, frozen backbone | 3 / 3 each |
+| `effnet_b0_ft`, `mnv3_ft` | **students for compression** | 0 / 3 |
+| `effnet_b3_ft` | **teacher for distillation** | 0 / 3 |
+| `scratch_cnn` | the baseline to beat | 1 / 3 |
+| `resnet50_fe`, `resnet50_ft` | comparison rows | 0 / 3 |
+| `deit_s_fe`, `deit_s_ft` | transformer comparison (first to cut if time runs short) | 0 / 3 |
+
+Remaining work is roughly 15–20 GPU-hours. Current blocker: the free Colab GPU quota. Options are
+to wait for it to reset, train on a local RTX 3050 laptop GPU, or buy Colab compute units.
+Finished results so far are on Google Drive and still need to be committed to `results/metrics/`.
+
+### ⬜ To do
+
+**Phase 4: Compression** *(needs the fine-tuned students and the teacher)*
+- [ ] Knowledge distillation: EfficientNet-B3 teacher → EfficientNet-B0 / MobileNetV3 students
+- [ ] Structured pruning with Torch-Pruning at 30 / 50 / 70%, fine-tuning after each level, keeping the GAP + linear head
+- [ ] INT8 post-training quantization (quantization-aware training only if accuracy drops too far)
+- [ ] One config per method × level; this grid is the main results table
+
+**Phase 5: Core experiment**
+- [ ] Recompute faithfulness and localisation metrics at every compression level
+- [ ] Stability against the uncompressed parent: Spearman, SSIM, top-10% IoU (Table 3)
+- [ ] Centrepiece figure: accuracy vs. size and explanation quality vs. size on one plot
+- [ ] Does compression make lab → field shortcut learning better or worse?
+
+**Phase 6: On-device explanations**
+- [ ] Export models with two outputs (logits + final feature maps) and ship the classifier weights with the app
+- [ ] Reproduce the closed-form heatmap from the exported model and compare it with the desktop result
+
+**Phase 7: Android app and benchmarks**
+- [ ] ExecuTorch export (XNNPACK backend) in its own environment
+- [ ] Kotlin + CameraX app: camera → label + confidence → heatmap overlay → "unsure" state below a confidence threshold tuned on validation data
+- [ ] Pixel 6a (primary) and Galaxy Tab S9 FE+ benchmarks: size, cold start, latency median/p95, heatmap latency, peak memory, battery (Table 4)
+
+**Phase 8: Release**
+- [ ] Web results dashboard that reads `results/`
+- [ ] Paper (intro, related work, method, setup, results, on-device, limitations) with tables generated from the results
+- [ ] Trained weights and lesion annotations published; demo video; Android APK
+
+### 📋 Needs to be done by hand
+- [ ] Collect 150–300 own field leaf photos (classes PlantVillage covers), labels confirmed by a plant expert
+- [ ] Draw lesion masks on 150–300 field images (CVAT or Label Studio); without them, pointing game and IoU stay empty
+- [ ] Re-run the literature search before writing up (`research/notes/gap.md`): the research gap must be re-checked, not assumed
+- [ ] Add a license to the repository
+
+### Known limitations so far
+- PlantDoc is web-scraped and contains some images that are not single leaves (e.g. fruit, whole fields). They are kept as-is: removing images after seeing results would amount to tuning on the test set.
+- Feature-extraction runs use 6 epochs. This was chosen from the validation curve only.
 
 ## Datasets
 | Dataset | Role | Source |
