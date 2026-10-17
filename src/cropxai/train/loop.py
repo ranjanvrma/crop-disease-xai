@@ -46,12 +46,18 @@ def warmup_cosine(optimizer: torch.optim.Optimizer, warmup_steps: int, total_ste
     return torch.optim.lr_scheduler.LambdaLR(optimizer, factor)
 
 
+def memory_format(device: torch.device) -> torch.memory_format:
+    """channels_last lets cuDNN use tensor cores for convs under AMP (GPU only)."""
+    return torch.channels_last if device.type == "cuda" else torch.contiguous_format
+
+
 def train_one_epoch(model, loader: DataLoader, optimizer, scheduler, scaler, loss_fn, device, amp: bool) -> float:
     model.train()
     freeze_frozen_batchnorm(model)
     total, n = 0.0, 0
     for images, labels in loader:
-        images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+        images = images.to(device, non_blocking=True, memory_format=memory_format(device))
+        labels = labels.to(device, non_blocking=True)
         with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=amp):
             loss = loss_fn(model(images), labels)
         optimizer.zero_grad(set_to_none=True)
@@ -76,7 +82,7 @@ def fit(cfg: DictConfig) -> dict:
     amp = t.amp and device.type == "cuda"
 
     classes = load_classes(cfg)
-    model = build_model(cfg.model, num_classes=len(classes)).to(device)
+    model = build_model(cfg.model, num_classes=len(classes)).to(device, memory_format=memory_format(device))
     set_trainable(model, t.mode)
 
     train_loader, val_loader = make_loader(cfg, "train"), make_loader(cfg, "val")
