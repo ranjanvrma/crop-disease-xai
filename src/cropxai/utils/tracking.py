@@ -18,11 +18,12 @@ from omegaconf import DictConfig, OmegaConf
 from cropxai.utils.config import resolve_path
 
 
-def init_wandb(cfg: DictConfig, job_type: str):
+def init_wandb(cfg: DictConfig, job_type: str, run_id: str | None = None):
     """Start a W&B run with the full resolved config attached.
 
     ``cfg.wandb.mode`` may be ``online``, ``offline`` or ``disabled`` (tests
-    and quick local checks use ``disabled``).
+    and quick local checks use ``disabled``). Pass ``run_id`` to continue an
+    interrupted run's curves in the same W&B run.
     """
     import wandb  # imported lazily so data-only tooling doesn't need it
 
@@ -34,6 +35,8 @@ def init_wandb(cfg: DictConfig, job_type: str):
         group=cfg.run_name,  # the 3 seeds of one experiment share a group
         job_type=job_type,
         config=OmegaConf.to_container(cfg, resolve=True),
+        id=run_id,
+        resume="allow" if run_id else None,
     )
 
 

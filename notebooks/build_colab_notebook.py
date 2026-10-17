@@ -47,10 +47,13 @@ Dataset zips in `MyDrive/cropxai/raw/` (see `data/README.md`).
 
 code("""
 # ============ SETTINGS: normally nothing to change, just Runtime -> Run all ============
-# The whole baseline queue, cheapest first. Finished experiments/seeds are skipped.
+# The whole baseline queue, in priority order. Finished experiments/seeds are skipped.
 EXPS = [
-    "mnv3_fe", "effnet_b0_fe", "scratch_cnn", "mnv3_ft", "effnet_b0_ft",
-    "resnet50_fe", "resnet50_ft", "effnet_b3_ft", "deit_s_fe", "deit_s_ft",
+    "mnv3_fe", "effnet_b0_fe",                    # done
+    "effnet_b0_ft", "mnv3_ft", "effnet_b3_ft",    # needed for Phase 4: students + teacher
+    "scratch_cnn",                                # the baseline to beat
+    "resnet50_fe", "resnet50_ft",                 # comparison rows
+    "deit_s_fe", "deit_s_ft",                     # comparison rows; first to cut if time runs out
 ]
 SEEDS = [0, 1, 2]
 

@@ -2,8 +2,11 @@
 
 import json
 import math
+import os
+import random
 from pathlib import Path
 
+import numpy as np
 import torch
 from omegaconf import DictConfig, OmegaConf
 from torch import nn
@@ -24,6 +27,44 @@ def checkpoint_path(cfg: DictConfig) -> Path:
 def complete_marker(cfg: DictConfig) -> Path:
     """Written only after the last epoch, so an interrupted run is never mistaken for a finished one."""
     return checkpoint_path(cfg).with_name("complete.json")
+
+
+def resume_path(cfg: DictConfig) -> Path:
+    """Full training state after the latest finished epoch; deleted when training completes."""
+    return checkpoint_path(cfg).with_name("last.pt")
+
+
+def save_atomic(obj: dict, path: Path) -> None:
+    """Write via a temp file, so a disconnect mid-save never leaves a corrupt checkpoint."""
+    tmp = path.with_suffix(".tmp")
+    torch.save(obj, tmp)
+    os.replace(tmp, path)
+
+
+def rng_state() -> dict:
+    return {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch": torch.get_rng_state(),
+        "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+    }
+
+
+def set_rng_state(state: dict) -> None:
+    random.setstate(state["python"])
+    np.random.set_state(state["numpy"])
+    torch.set_rng_state(state["torch"])
+    if state["cuda"] is not None and torch.cuda.is_available():
+        torch.cuda.set_rng_state_all(state["cuda"])
+
+
+def load_resume_state(cfg: DictConfig) -> dict | None:
+    """The saved mid-training state, if it belongs to exactly these settings."""
+    path = resume_path(cfg)
+    if not path.exists():
+        return None
+    state = torch.load(path, map_location="cpu", weights_only=False)
+    return state if state.get("fingerprint") == training_fingerprint(cfg) else None
 
 
 def get_device() -> torch.device:
@@ -100,29 +141,52 @@ def fit(cfg: DictConfig) -> dict:
 
     ckpt = checkpoint_path(cfg)
     ckpt.parent.mkdir(parents=True, exist_ok=True)
-    complete_marker(cfg).unlink(missing_ok=True)  # a retrain invalidates the old marker
-    run = init_wandb(cfg, job_type="train")
-    best = {"val_macro_f1": -1.0}
+    complete_marker(cfg).unlink(missing_ok=True)  # a (re)train invalidates the old marker
+    fingerprint = training_fingerprint(cfg)
 
-    for epoch in range(t.epochs):
+    # Resume after a disconnect: continue from the last finished epoch.
+    state = load_resume_state(cfg)
+    if state is not None:
+        model.load_state_dict(state["model"])
+        optimizer.load_state_dict(state["optimizer"])
+        scheduler.load_state_dict(state["scheduler"])
+        scaler.load_state_dict(state["scaler"])
+        set_rng_state(state["rng"])
+        train_loader.generator.set_state(state["loader_rng"])
+        best, start_epoch = state["best"], state["epoch"] + 1
+        print(f"[{cfg.run_name} seed{cfg.seed}] resuming after epoch {state['epoch']}")
+    else:
+        ckpt.unlink(missing_ok=True)  # never leave a best.pt from older settings behind
+        best, start_epoch = {"val_macro_f1": -1.0}, 0
+    run = init_wandb(cfg, job_type="train", run_id=state["wandb_id"] if state else None)
+
+    for epoch in range(start_epoch, t.epochs):
         train_loss = train_one_epoch(model, train_loader, optimizer, scheduler, scaler, loss_fn, device, amp)
         val = classification_metrics(*predict(model, val_loader, device))
         log = {"epoch": epoch, "train/loss": train_loss, **{f"val/{k}": v for k, v in val.items()}}
         run.log(log)
         print(f"[{cfg.run_name} seed{cfg.seed}] epoch {epoch}: loss {train_loss:.4f} "
-              f"val top1 {val['top1']:.4f} f1 {val['macro_f1']:.4f} ece {val['ece']:.4f}")
+              f"val top1 {val['top1']:.4f} f1 {val['macro_f1']:.4f} ece {val['ece']:.4f}", flush=True)
 
         if val["macro_f1"] > best["val_macro_f1"]:
             best = {"epoch": epoch, "val_macro_f1": val["macro_f1"], "val_top1": val["top1"], "val_ece": val["ece"]}
-            torch.save({
+            save_atomic({
                 "state_dict": model.state_dict(),
                 "classes": classes,
                 "config": OmegaConf.to_container(cfg, resolve=True),
                 "best": best,
             }, ckpt)
+        save_atomic({
+            "epoch": epoch, "fingerprint": fingerprint, "best": best,
+            "model": model.state_dict(), "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(), "scaler": scaler.state_dict(),
+            "rng": rng_state(), "loader_rng": train_loader.generator.get_state(),
+            "wandb_id": getattr(run, "id", None),
+        }, resume_path(cfg))
 
-    marker = best | {"epochs": t.epochs, "fingerprint": training_fingerprint(cfg)}
+    marker = best | {"epochs": t.epochs, "fingerprint": fingerprint}
     complete_marker(cfg).write_text(json.dumps(marker, indent=2), encoding="utf-8")
+    resume_path(cfg).unlink(missing_ok=True)
     run.summary.update({f"best/{k}": v for k, v in best.items()})
     run.finish()
     return best | {"checkpoint": str(ckpt)}

@@ -77,3 +77,47 @@ def test_fingerprint_tracks_training_settings_only():
     changed = load_config("configs/experiment/mnv3_fe.yaml", ["train.epochs=99"])
     assert training_fingerprint(base) == training_fingerprint(same)      # paths/explain don't matter
     assert training_fingerprint(base) != training_fingerprint(changed)   # training settings do
+
+
+def test_training_resumes_after_interruption(dataset_root: Path, tmp_path: Path, monkeypatch, capsys):
+    import cropxai.train.loop as loop
+
+    work = tmp_path / "work"
+    cfg = load_config("configs/experiment/scratch_cnn.yaml", [
+        f"paths.data_root={dataset_root.as_posix()}",
+        f"paths.checkpoints_dir={(work / 'ckpt').as_posix()}",
+        f"data.class_map={(dataset_root / 'map.yaml').as_posix()}",
+        "data.plantdoc_dirs=[plantdoc/test]",
+        f"data.manifest={(work / 'manifest.csv').as_posix()}",
+        f"data.classes_file={(work / 'classes.json').as_posix()}",
+        "train.epochs=3", "train.warmup_epochs=1", "image_size=32", "batch_size=8",
+        "num_workers=0", "wandb.mode=disabled",
+    ])
+    manifest, _ = build_manifest(cfg)
+    work.mkdir(parents=True, exist_ok=True)
+    manifest.to_csv(cfg.data.manifest, index=False)
+    Path(cfg.data.classes_file).write_text(json.dumps(PV_CLASSES))
+
+    # Simulate a Colab disconnect during the second epoch.
+    real_epoch, calls = loop.train_one_epoch, {"n": 0}
+
+    def flaky_epoch(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise KeyboardInterrupt("disconnected")
+        return real_epoch(*args, **kwargs)
+
+    monkeypatch.setattr(loop, "train_one_epoch", flaky_epoch)
+    try:
+        loop.fit(cfg)
+    except KeyboardInterrupt:
+        pass
+    assert loop.resume_path(cfg).exists() and not loop.is_trained(cfg)
+
+    monkeypatch.setattr(loop, "train_one_epoch", real_epoch)
+    capsys.readouterr()
+    loop.fit(cfg)
+    out = capsys.readouterr().out
+    assert "resuming after epoch 0" in out
+    assert "epoch 0:" not in out and "epoch 2:" in out       # continued, didn't restart
+    assert loop.is_trained(cfg) and not loop.resume_path(cfg).exists()
