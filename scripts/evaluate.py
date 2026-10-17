@@ -10,6 +10,7 @@ once per finished experiment, never to choose hyperparameters. Writes
 import argparse
 
 import torch
+from omegaconf import OmegaConf
 
 from cropxai.data.dataset import make_loader
 from cropxai.eval.classification import classification_metrics, field_metrics, predict
@@ -26,7 +27,9 @@ def evaluate(cfg) -> dict:
     device = get_device()
     ckpt = torch.load(checkpoint_path(cfg), map_location="cpu", weights_only=False)
 
-    model = build_model(cfg.model, num_classes=len(ckpt["classes"]))
+    # Weights come from the checkpoint, so skip downloading ImageNet weights.
+    model_cfg = OmegaConf.merge(cfg.model, {"pretrained": False})
+    model = build_model(model_cfg, num_classes=len(ckpt["classes"]))
     model.load_state_dict(ckpt["state_dict"])
     model.to(device).eval()
 
