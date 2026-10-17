@@ -5,7 +5,7 @@ explain:
   sample_seed: 0
   methods: [gradcampp, gradcam, scorecam]
   scorecam_n_images: 100         # Score-CAM needs one forward pass per channel: slow
-  batch_size: 32
+  batch_size: 32                 # also Score-CAM masked inputs per forward pass
   deletion:
     n_steps: 20
     blur_kernel: 21              # insertion starts from a Gaussian-blurred image

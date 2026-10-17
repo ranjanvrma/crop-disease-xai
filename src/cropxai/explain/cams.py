@@ -31,14 +31,20 @@ def target_layer(model: nn.Module, arch: str) -> nn.Module:
 def compute_cams(
     model: nn.Module, arch: str, method: str, images: torch.Tensor, classes: list[int], batch_size: int = 32
 ) -> np.ndarray:
-    """Heatmaps in [0, 1] at input resolution, shape (N, H, W), for the given class per image."""
+    """Heatmaps in [0, 1] at input resolution, shape (N, H, W), for the given class per image.
+
+    Score-CAM upsamples every channel of every input image at once
+    (N x K x H x W floats; 32 x 960 x 224 x 224 is ~6 GB), so it takes one image
+    at a time and batches its K masked forward passes instead.
+    """
     cam_cls = METHODS[method]
+    step = 1 if method == "scorecam" else batch_size
     out = []
     with cam_cls(model=model, target_layers=[target_layer(model, arch)]) as cam:
         if method == "scorecam":
-            cam.batch_size = batch_size  # forward passes per batch of masked inputs
-        for start in range(0, len(images), batch_size):
-            x = images[start:start + batch_size]
-            targets = [ClassifierOutputTarget(int(c)) for c in classes[start:start + batch_size]]
+            cam.batch_size = batch_size  # masked inputs per forward pass
+        for start in range(0, len(images), step):
+            x = images[start:start + step]
+            targets = [ClassifierOutputTarget(int(c)) for c in classes[start:start + step]]
             out.append(cam(input_tensor=x, targets=targets))
     return np.concatenate(out)
