@@ -3,10 +3,19 @@
     python notebooks/build_colab_notebook.py
 """
 
+import hashlib
 import json
 from pathlib import Path
 
 cells = []
+
+
+def build_fingerprint(path: Path) -> str:
+    """Hash of this generator, stamped into the notebook (text mode normalises line endings)."""
+    return hashlib.md5(path.read_text(encoding="utf-8").encode()).hexdigest()[:10]
+
+
+BUILD = build_fingerprint(Path(__file__))
 
 
 def md(s: str) -> None:
@@ -51,7 +60,8 @@ RUN_TESTS = False   # unit tests; only needed after code changes
 REPO_URL = "https://github.com/ranjanvrma/crop-disease-xai.git"
 BRANCH   = "main"
 DRIVE    = "/content/drive/MyDrive/cropxai"
-""")
+NOTEBOOK_BUILD = "__BUILD__"   # set by notebooks/build_colab_notebook.py; don't edit
+""".replace("__BUILD__", BUILD))
 
 md("## Setup (automatic)")
 
@@ -80,6 +90,12 @@ else:
     sh(f"git -C {REPO} fetch -q origin {BRANCH} && git -C {REPO} reset -q --hard origin/{BRANCH}")
 os.chdir(REPO)
 sh("git log --oneline -1")
+
+# The cells you run live in this open notebook, not in the clone: catch an outdated tab.
+repo_build = hashlib.md5(open("notebooks/build_colab_notebook.py", encoding="utf-8").read().encode()).hexdigest()[:10]
+if repo_build != NOTEBOOK_BUILD:
+    raise RuntimeError("This notebook is outdated. File -> Open notebook -> GitHub tab -> "
+                       "reopen colab_bootstrap.ipynb, then Run all again.")
 
 # Install once per Colab machine; again only if the dependency list changed.
 deps_hash = hashlib.md5(open("pyproject.toml", "rb").read()).hexdigest()
