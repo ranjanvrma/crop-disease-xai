@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from cropxai.data.dataset import load_classes, make_loader
 from cropxai.eval.classification import classification_metrics, predict
 from cropxai.models import build_model, freeze_frozen_batchnorm, set_trainable
-from cropxai.utils.config import resolve_path
+from cropxai.utils.config import resolve_path, training_fingerprint
 from cropxai.utils.seed import seed_everything
 from cropxai.utils.tracking import init_wandb
 
@@ -121,7 +121,8 @@ def fit(cfg: DictConfig) -> dict:
                 "best": best,
             }, ckpt)
 
-    complete_marker(cfg).write_text(json.dumps(best | {"epochs": t.epochs}, indent=2), encoding="utf-8")
+    marker = best | {"epochs": t.epochs, "fingerprint": training_fingerprint(cfg)}
+    complete_marker(cfg).write_text(json.dumps(marker, indent=2), encoding="utf-8")
     run.summary.update({f"best/{k}": v for k, v in best.items()})
     run.finish()
     return best | {"checkpoint": str(ckpt)}
@@ -134,3 +135,11 @@ def load_trained(cfg: DictConfig, device: torch.device) -> tuple[nn.Module, list
     model = build_model(OmegaConf.merge(cfg.model, {"pretrained": False}), num_classes=len(ckpt["classes"]))
     model.load_state_dict(ckpt["state_dict"])
     return model.to(device).eval(), ckpt["classes"], ckpt
+
+
+def is_trained(cfg: DictConfig) -> bool:
+    """True if this seed finished training with exactly the current settings."""
+    marker = complete_marker(cfg)
+    if not marker.exists():
+        return False
+    return json.loads(marker.read_text(encoding="utf-8")).get("fingerprint") == training_fingerprint(cfg)

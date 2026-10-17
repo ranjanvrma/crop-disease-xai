@@ -9,6 +9,7 @@ experiment's own keys, then any ``key=value`` command-line overrides::
     run_name: prepare_data
 """
 
+import hashlib
 from pathlib import Path
 
 from omegaconf import DictConfig, OmegaConf
@@ -36,3 +37,14 @@ def resolve_path(p: str | Path) -> Path:
     """Absolute paths pass through; relative ones are taken from the repo root."""
     p = Path(p)
     return p if p.is_absolute() else REPO_ROOT / p
+
+
+# Keys that change what a training run produces. Paths, logging and the
+# explanation settings don't, so editing them never forces a retrain.
+TRAINING_KEYS = ["seed", "deterministic", "image_size", "batch_size", "data", "augment", "model", "train"]
+
+
+def training_fingerprint(cfg: DictConfig) -> str:
+    """Short hash of everything that affects a training run's result."""
+    subset = OmegaConf.create({k: cfg[k] for k in TRAINING_KEYS if k in cfg})
+    return hashlib.md5(OmegaConf.to_yaml(subset, sort_keys=True).encode()).hexdigest()[:12]

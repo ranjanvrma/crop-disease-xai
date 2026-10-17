@@ -22,7 +22,7 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
     from cropxai.train.loop import fit
 
     work = tmp_path / "work"
-    cfg = load_config("configs/experiment/scratch_cnn.yaml", [
+    overrides = [
         f"paths.data_root={dataset_root.as_posix()}",
         f"paths.checkpoints_dir={(work / 'ckpt').as_posix()}",
         f"paths.results_dir={(work / 'results').as_posix()}",
@@ -34,7 +34,8 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
         "num_workers=0", "wandb.mode=disabled",
         "explain.n_images=6", "explain.scorecam_n_images=3", "explain.road_n_images=3",
         "explain.n_figure_examples=2", "explain.verify_n_images=4", "explain.batch_size=4",
-    ])
+    ]
+    cfg = load_config("configs/experiment/scratch_cnn.yaml", overrides)
 
     manifest, _ = build_manifest(cfg)
     work.mkdir(parents=True, exist_ok=True)
@@ -44,6 +45,9 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
     best = fit(cfg)
     assert Path(best["checkpoint"]).exists()
     assert Path(best["checkpoint"]).with_name("complete.json").exists()
+    from cropxai.train.loop import is_trained
+    assert is_trained(cfg)
+    assert not is_trained(load_config("configs/experiment/scratch_cnn.yaml", [*overrides, "train.epochs=2"]))
 
     metrics = evaluate(cfg)
     assert 0.0 <= metrics["test"]["top1"] <= 1.0
@@ -63,3 +67,13 @@ def test_train_and_evaluate_scratch_cnn(dataset_root: Path, tmp_path: Path):
 
     check = verify(cfg)
     assert check["max_abs_diff"] < 1e-4                            # closed form == library
+
+
+def test_fingerprint_tracks_training_settings_only():
+    from cropxai.utils.config import training_fingerprint
+
+    base = load_config("configs/experiment/mnv3_fe.yaml")
+    same = load_config("configs/experiment/mnv3_fe.yaml", ["paths.results_dir=/elsewhere", "explain.n_images=5"])
+    changed = load_config("configs/experiment/mnv3_fe.yaml", ["train.epochs=99"])
+    assert training_fingerprint(base) == training_fingerprint(same)      # paths/explain don't matter
+    assert training_fingerprint(base) != training_fingerprint(changed)   # training settings do

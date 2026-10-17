@@ -1,7 +1,7 @@
 # Freeze the pretrained backbone (incl. BatchNorm stats); train only the linear head.
 train:
   mode: feature_extract
-  epochs: 10
+  epochs: 6              # mnv3_fe seed-0 val macro-F1 plateaued by epoch 6 of 10 (0.9674 vs 0.9680 at 9)
   lr: 1.0e-3
   backbone_lr_mult: 0.0  # unused: backbone has no trainable params
   weight_decay: 0.0
