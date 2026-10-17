@@ -10,6 +10,7 @@ masks exist) pointing game + IoU. Writes
 """
 
 import argparse
+import time
 
 import numpy as np
 import torch
@@ -74,10 +75,14 @@ def explain(cfg) -> dict:
         figure_cams = {}
         for method in e.methods:
             n = e.scorecam_n_images if method == "scorecam" else len(images)
-            cams = compute_cams(model, cfg.model.arch, method, images[:n], preds[:n].tolist(), e.batch_size)
+            t0 = time.perf_counter()
+            bs = e.scorecam_batch_size if method == "scorecam" else e.batch_size
+            cams = compute_cams(model, cfg.model.arch, method, images[:n], preds[:n].tolist(), bs)
+            t1 = time.perf_counter()
             split_out[method] = method_metrics(model, images[:n], cams, preds[:n], masks, has_mask, e)
             figure_cams[method] = cams[: e.n_figure_examples]
-            print(f"[{cfg.run_name} seed{cfg.seed}] {split} {method}: {split_out[method]}")
+            print(f"[{cfg.run_name} seed{cfg.seed}] {split} {method} "
+                  f"(cams {t1 - t0:.0f}s, metrics {time.perf_counter() - t1:.0f}s): {split_out[method]}", flush=True)
         results[split] = split_out
 
         fig_path = resolve_path(cfg.paths.results_dir) / "figures/heatmaps" / f"{cfg.run_name}_seed{cfg.seed}_{split}.png"

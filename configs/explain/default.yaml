@@ -4,14 +4,15 @@ explain:
   n_images: 300                  # per split; same seeded sample for every model
   sample_seed: 0
   methods: [gradcampp, gradcam, scorecam]
-  scorecam_n_images: 100         # Score-CAM needs one forward pass per channel: slow
-  batch_size: 32                 # also Score-CAM masked inputs per forward pass
+  scorecam_n_images: 50          # Score-CAM: one forward pass per channel per image (slow)
+  batch_size: 32
+  scorecam_batch_size: 128       # masked inputs per forward pass (inference only)
   deletion:
     n_steps: 20
     blur_kernel: 21              # insertion starts from a Gaussian-blurred image
     blur_sigma: 5.0
-  road_percentiles: [20, 40, 60, 80]
-  road_n_images: 100             # ROAD imputation is a CPU sparse solve per image: slow
+  road_percentiles: [20, 50, 80]
+  road_n_images: 50              # ROAD imputation: a CPU sparse solve per image x percentile x order
   iou_threshold: 0.5             # heatmap >= threshold counts as "highlighted"
   n_figure_examples: 8
   verify_n_images: 64            # closed-form vs library comparison

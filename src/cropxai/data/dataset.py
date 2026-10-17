@@ -74,15 +74,20 @@ def make_loader(cfg: DictConfig, split: str, allow_heldout: bool = False) -> Dat
         transform=train_transform(cfg) if is_train else eval_transform(cfg),
         allow_heldout=allow_heldout,
     )
+    workers = cfg.num_workers
     return DataLoader(
         dataset,
-        batch_size=cfg.batch_size,
+        # No gradients at eval time, so larger batches fit and run faster.
+        batch_size=cfg.batch_size if is_train else cfg.batch_size * 2,
         shuffle=is_train,
         drop_last=is_train,
-        num_workers=cfg.num_workers,
+        num_workers=workers,
         pin_memory=torch.cuda.is_available(),
         worker_init_fn=seed_worker,
         generator=make_generator(cfg.seed),
+        # Keep workers alive between epochs instead of re-spawning them.
+        persistent_workers=workers > 0,
+        prefetch_factor=4 if workers > 0 else None,
     )
 
 
