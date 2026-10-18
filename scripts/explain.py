@@ -23,7 +23,6 @@ from cropxai.eval.faithfulness import average_drop_and_increase, deletion_insert
 from cropxai.eval.localisation import localisation_metrics
 from cropxai.explain.cams import compute_cams
 from cropxai.explain.figures import save_examples_figure
-from cropxai.models import VIT_ARCHS
 from cropxai.train.loop import get_device, load_trained
 from cropxai.utils.config import load_config, resolve_path
 from cropxai.utils.seed import seed_everything
@@ -54,8 +53,6 @@ def method_metrics(model, images, cams, preds, masks, has_mask, e) -> dict:
 
 
 def explain(cfg) -> dict:
-    if cfg.model.arch in VIT_ARCHS:
-        raise SystemExit(f"{cfg.model.arch}: Grad-CAM++ is defined for CNNs; ViTs are a desktop accuracy comparison only.")
     seed_everything(cfg.seed, cfg.deterministic)
     device = get_device()
     model, _, _ = load_trained(cfg, device)

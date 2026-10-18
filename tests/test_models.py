@@ -34,12 +34,6 @@ def test_cnn_head_is_gap_plus_single_linear(arch):
         assert model(x).shape == (2, NUM_CLASSES)
 
 
-def test_deit_builds():
-    model = _model("deit_small_patch16_224")
-    with torch.no_grad():
-        assert model(torch.randn(1, 3, 224, 224)).shape == (1, NUM_CLASSES)
-
-
 def test_feature_extract_trains_only_the_head():
     model = _model("efficientnet_b0")
     set_trainable(model, "feature_extract")

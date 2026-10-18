@@ -1,2 +1,0 @@
-inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/resnet50.yaml, train/feature_extract.yaml]
-run_name: resnet50_fe

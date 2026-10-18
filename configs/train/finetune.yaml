@@ -2,7 +2,7 @@
 # Starting defaults, not tuned. Tune on val only, then freeze before the 3-seed runs.
 train:
   mode: finetune
-  epochs: 15
+  epochs: 10             # compute budget (free-tier GPU); not tuned
   lr: 3.0e-4
   backbone_lr_mult: 0.1
   weight_decay: 0.05

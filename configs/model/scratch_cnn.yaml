@@ -2,3 +2,4 @@ model:
   arch: scratch_cnn
   pretrained: false
   drop_rate: 0.2
+  stem_stride: 2       # downsample in the first conv: ~4x cheaper than full resolution

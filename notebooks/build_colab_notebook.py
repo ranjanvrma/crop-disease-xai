@@ -47,15 +47,14 @@ Dataset zips in `MyDrive/cropxai/raw/` (see `data/README.md`).
 
 code("""
 # ============ SETTINGS: normally nothing to change, just Runtime -> Run all ============
-# The whole baseline queue, in priority order. Finished experiments/seeds are skipped.
+# The baseline queue, in priority order. Seeds come from each experiment's config
+# (3 seeds; the distillation teacher needs only 1). Finished work is skipped.
 EXPS = [
-    "mnv3_fe", "effnet_b0_fe",                    # done
-    "effnet_b0_ft", "mnv3_ft", "effnet_b3_ft",    # needed for Phase 4: students + teacher
-    "scratch_cnn",                                # the baseline to beat
-    "resnet50_fe", "resnet50_ft",                 # comparison rows
-    "deit_s_fe", "deit_s_ft",                     # comparison rows; first to cut if time runs out
+    "mnv3_fe", "effnet_b0_fe",   # done
+    "mnv3_ft",                   # the mobile student (parent of every compressed variant)
+    "effnet_b0_ft",              # distillation teacher (1 seed)
+    "scratch_cnn",               # the baseline to beat
 ]
-SEEDS = [0, 1, 2]
 
 TRAIN    = True     # train seeds that haven't finished (set False to only re-use existing checkpoints)
 EVALUATE = True     # in-domain test + PlantDoc field accuracy, size, latency
@@ -184,7 +183,6 @@ def run_seed(exp, seed):
     cfg_path = f"configs/experiment/{exp}.yaml"
     cfg = load_config(cfg_path, [f"seed={seed}"])
     ckpt = str(checkpoint_path(cfg))
-    is_cnn = not exp.startswith("deit")      # Grad-CAM++ steps are for CNNs only
     print(f"\\n========== {exp} seed {seed} ==========")
 
     trained = is_trained(cfg)                # finished AND trained with the current settings
@@ -202,8 +200,8 @@ def run_seed(exp, seed):
 
     steps = [
         ("evaluate", EVALUATE, "accuracy", "evaluate.py"),
-        ("verify", VERIFY and is_cnn, "closed_form", "verify_closed_form.py"),
-        ("explain", EXPLAIN and is_cnn, "explanation", "explain.py"),
+        ("verify", VERIFY, "closed_form", "verify_closed_form.py"),
+        ("explain", EXPLAIN, "explanation", "explain.py"),
     ]
     for name, wanted, kind, script in steps:
         if not wanted:
@@ -216,7 +214,7 @@ def run_seed(exp, seed):
 for exp in EXPS:
     assert os.path.exists(f"configs/experiment/{exp}.yaml"), f"No such experiment: {exp}"
 for exp in EXPS:
-    for seed in SEEDS:
+    for seed in load_config(f"configs/experiment/{exp}.yaml").seeds:
         run_seed(exp, seed)
 print("\\nQueue finished: every experiment and seed is done.")
 """)
@@ -230,11 +228,16 @@ sh(f"python scripts/make_tables.py --results-dir {RESULTS}")
 print("\\nProgress (seeds fully done per experiment):")
 total = done_total = 0
 for exp in EXPS:
-    kinds = ["accuracy"] + ([] if exp.startswith("deit") else ["closed_form", "explanation"])
-    done = sum(all(os.path.exists(f"{RESULTS}/metrics/{k}/{exp}_seed{s}.json") for k in kinds) for s in SEEDS)
-    total += len(SEEDS)
+    seeds = list(load_config(f"configs/experiment/{exp}.yaml").seeds)
+    done = 0
+    for s in seeds:
+        c = load_config(f"configs/experiment/{exp}.yaml", [f"seed={s}"])
+        results_ok = all(os.path.exists(f"{RESULTS}/metrics/{k}/{exp}_seed{s}.json")
+                         for k in ["accuracy", "closed_form", "explanation"])
+        done += int(is_trained(c) and results_ok)   # results from older settings don't count
+    total += len(seeds)
     done_total += done
-    print(f"  {exp:14s} {done}/{len(SEEDS)}  {'done' if done == len(SEEDS) else ''}")
+    print(f"  {exp:14s} {done}/{len(seeds)}  {'done' if done == len(seeds) else ''}")
 print(f"  overall: {done_total}/{total} seeds")
 """)
 

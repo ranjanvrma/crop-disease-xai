@@ -1,5 +1,0 @@
-# Desktop comparison only: Grad-CAM++ does not apply to ViTs; not on the mobile track.
-model:
-  arch: deit_small_patch16_224
-  pretrained: true
-  drop_rate: 0.1

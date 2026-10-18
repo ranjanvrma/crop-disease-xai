@@ -11,8 +11,9 @@ from torch import nn
 
 from cropxai.models.scratch_cnn import ScratchCNN
 
-CNN_ARCHS = {"scratch_cnn", "resnet50", "efficientnet_b0", "efficientnet_b3", "mobilenetv3_large_100"}
-VIT_ARCHS = {"deit_small_patch16_224"}  # desktop comparison only; not on the mobile track
+# Kept deliberately small to fit a free-tier GPU budget: a from-scratch baseline,
+# the mobile student (MobileNetV3) and its distillation teacher (EfficientNet-B0).
+CNN_ARCHS = {"scratch_cnn", "efficientnet_b0", "mobilenetv3_large_100"}
 
 
 def _single_linear_mobilenetv3(model: nn.Module, num_classes: int) -> nn.Module:
@@ -34,9 +35,9 @@ def build_model(model_cfg: DictConfig, num_classes: int) -> nn.Module:
     """Create the model named by ``model_cfg.arch`` with a fresh classifier."""
     arch = model_cfg.arch
     if arch == "scratch_cnn":
-        return ScratchCNN(num_classes, drop_rate=model_cfg.drop_rate)
-    if arch not in CNN_ARCHS | VIT_ARCHS:
-        raise ValueError(f"Unknown arch '{arch}'. Options: {sorted(CNN_ARCHS | VIT_ARCHS)}")
+        return ScratchCNN(num_classes, drop_rate=model_cfg.drop_rate, stem_stride=model_cfg.get("stem_stride", 1))
+    if arch not in CNN_ARCHS:
+        raise ValueError(f"Unknown arch '{arch}'. Options: {sorted(CNN_ARCHS)}")
 
     model = timm.create_model(
         arch, pretrained=model_cfg.pretrained, num_classes=num_classes, drop_rate=model_cfg.drop_rate

@@ -1,2 +1,5 @@
 inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/effnet_b0.yaml, train/finetune.yaml]
 run_name: effnet_b0_ft
+# Distillation teacher for the MobileNetV3 student. One seed is enough for a teacher;
+# it is not one of the reported comparison rows.
+seeds: [0]

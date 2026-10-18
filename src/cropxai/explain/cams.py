@@ -19,9 +19,7 @@ def target_layer(model: nn.Module, arch: str) -> nn.Module:
     """The module whose output is the final feature map (input to GAP)."""
     if arch == "scratch_cnn":
         return model.features[-1]
-    if arch == "resnet50":
-        return model.layer4
-    if arch in {"efficientnet_b0", "efficientnet_b3"}:
+    if arch == "efficientnet_b0":
         return model.bn2  # conv_head -> BN -> SiLU, fused in timm's BatchNormAct2d
     if arch == "mobilenetv3_large_100":
         return model.blocks[-1]  # our single-linear head pools the block output directly
