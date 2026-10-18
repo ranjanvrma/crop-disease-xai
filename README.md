@@ -16,6 +16,8 @@ with a closed-form, gradient-free Grad-CAM++ that runs in a single forward pass.
 
 </div>
 
+> **Picking up this project?** Start with [HANDOFF.md](HANDOFF.md): current state, rules, setup, next steps and the decision log.
+
 ---
 
 ## Contents
