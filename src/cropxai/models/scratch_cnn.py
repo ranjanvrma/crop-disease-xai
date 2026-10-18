@@ -5,9 +5,9 @@ from torch import nn
 from torch.nn import functional as F
 
 
-def _stage(c_in: int, c_out: int, pool: bool, stride: int = 1) -> nn.Sequential:
+def _stage(c_in: int, c_out: int, pool: bool) -> nn.Sequential:
     layers = [
-        nn.Conv2d(c_in, c_out, 3, stride=stride, padding=1, bias=False), nn.BatchNorm2d(c_out), nn.ReLU(inplace=True),
+        nn.Conv2d(c_in, c_out, 3, padding=1, bias=False), nn.BatchNorm2d(c_out), nn.ReLU(inplace=True),
         nn.Conv2d(c_out, c_out, 3, padding=1, bias=False), nn.BatchNorm2d(c_out), nn.ReLU(inplace=True),
     ]
     if pool:
@@ -23,16 +23,12 @@ class ScratchCNN(nn.Module):
     code treat every architecture alike.
     """
 
-    def __init__(
-        self, num_classes: int, widths: tuple[int, ...] = (32, 64, 128, 256), drop_rate: float = 0.2, stem_stride: int = 1
-    ):
+    def __init__(self, num_classes: int, widths: tuple[int, ...] = (32, 64, 128, 256), drop_rate: float = 0.2):
         super().__init__()
         chans = (3, *widths)
-        # stem_stride=2 halves the resolution in the first conv: ~4x fewer FLOPs in every stage.
-        self.features = nn.Sequential(*[
-            _stage(chans[i], chans[i + 1], pool=i < len(widths) - 1, stride=stem_stride if i == 0 else 1)
-            for i in range(len(widths))
-        ])
+        self.features = nn.Sequential(
+            *[_stage(chans[i], chans[i + 1], pool=i < len(widths) - 1) for i in range(len(widths))]
+        )
         self.drop_rate = drop_rate
         self.classifier = nn.Linear(widths[-1], num_classes)
         self.num_features = widths[-1]

@@ -117,6 +117,22 @@ def train_one_epoch(model, loader: DataLoader, optimizer, scheduler, scaler, los
     return total / n
 
 
+def build_training_model(cfg: DictConfig, num_classes: int) -> nn.Module:
+    """A fresh model, or for a pruned variant its parent's weights after pruning."""
+    from cropxai.compress.variants import compress_cfg, pruned_from_parent
+
+    c = compress_cfg(cfg)
+    if c and c.prune_ratio:
+        return pruned_from_parent(cfg)
+    return build_model(cfg.model, num_classes=num_classes)
+
+
+def mark_complete(cfg: DictConfig, info: dict) -> None:
+    """Record that this run finished with exactly the current settings."""
+    marker = info | {"fingerprint": training_fingerprint(cfg)}
+    complete_marker(cfg).write_text(json.dumps(marker, indent=2), encoding="utf-8")
+
+
 def fit(cfg: DictConfig) -> dict:
     """Train one seed; keep the checkpoint with the best val macro-F1.
 
@@ -129,7 +145,7 @@ def fit(cfg: DictConfig) -> dict:
     amp = t.amp and device.type == "cuda"
 
     classes = load_classes(cfg)
-    model = build_model(cfg.model, num_classes=len(classes)).to(device, memory_format=memory_format(device))
+    model = build_training_model(cfg, len(classes)).to(device, memory_format=memory_format(device))
     set_trainable(model, t.mode)
 
     train_loader, val_loader = make_loader(cfg, "train"), make_loader(cfg, "val")
@@ -184,8 +200,7 @@ def fit(cfg: DictConfig) -> dict:
             "wandb_id": getattr(run, "id", None),
         }, resume_path(cfg))
 
-    marker = best | {"epochs": t.epochs, "fingerprint": fingerprint}
-    complete_marker(cfg).write_text(json.dumps(marker, indent=2), encoding="utf-8")
+    mark_complete(cfg, best | {"epochs": t.epochs})
     resume_path(cfg).unlink(missing_ok=True)
     run.summary.update({f"best/{k}": v for k, v in best.items()})
     run.finish()
@@ -194,9 +209,24 @@ def fit(cfg: DictConfig) -> dict:
 
 def load_trained(cfg: DictConfig, device: torch.device) -> tuple[nn.Module, list[str], dict]:
     """Rebuild the model for ``cfg`` and load its best checkpoint (eval mode)."""
+    from cropxai.compress.variants import compress_cfg
+
     ckpt = torch.load(checkpoint_path(cfg), map_location="cpu", weights_only=False)
+    c = compress_cfg(cfg)
+    if c and c.int8:
+        from cropxai.compress.quantize import QuantizedModel
+
+        w = ckpt["classifier"]["weight"]
+        classifier = nn.Linear(w.shape[1], w.shape[0])
+        classifier.load_state_dict(ckpt["classifier"])
+        return QuantizedModel(ckpt["program"], classifier, device), ckpt["classes"], ckpt
+
     # Weights come from the checkpoint, so skip downloading ImageNet weights.
     model = build_model(OmegaConf.merge(cfg.model, {"pretrained": False}), num_classes=len(ckpt["classes"]))
+    if c and c.prune_ratio:  # same uniform pruning -> same layer shapes as the saved variant
+        from cropxai.compress.prune import prune_structured
+
+        prune_structured(model, c.prune_ratio, cfg.image_size)
     model.load_state_dict(ckpt["state_dict"])
     return model.to(device).eval(), ckpt["classes"], ckpt
 

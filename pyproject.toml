@@ -30,7 +30,7 @@ train = [
     "wandb>=0.17",
     "grad-cam>=1.5",
 ]
-# Phase 4 (distillation, structured pruning, INT8 quantization).
+# Phase 4 (structured pruning, INT8 quantization).
 compress = [
     "torch-pruning>=1.5",
     "torchao>=0.10",

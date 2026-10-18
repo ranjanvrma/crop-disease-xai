@@ -11,6 +11,7 @@ import argparse
 
 import torch
 
+from cropxai.compress.variants import is_int8
 from cropxai.data.dataset import make_loader
 from cropxai.eval.classification import classification_metrics, field_metrics, predict
 from cropxai.eval.efficiency import count_params, measure_latency, state_dict_size_mb
@@ -24,6 +25,7 @@ def evaluate(cfg) -> dict:
     seed_everything(cfg.seed, cfg.deterministic)
     device = get_device()
     model, _, ckpt = load_trained(cfg, device)
+    int8 = is_int8(cfg)
 
     test = classification_metrics(*predict(model, make_loader(cfg, "test"), device))
     field = field_metrics(*predict(model, make_loader(cfg, "field_test", allow_heldout=True), device))
@@ -31,14 +33,18 @@ def evaluate(cfg) -> dict:
     metrics = {
         "arch": cfg.model.arch,
         "train_mode": cfg.train.mode,
-        "params": count_params(model),
-        "size_mb_fp32": state_dict_size_mb(model),
-        "best_epoch": ckpt["best"]["epoch"],
-        "val_macro_f1": ckpt["best"]["val_macro_f1"],
+        "int8": int8,
+        "quantizer": ckpt.get("quantizer"),
+        "params": ckpt["params"] if int8 else count_params(model),
+        "size_mb_fp32": None if int8 else state_dict_size_mb(model),
+        "best_epoch": ckpt["best"].get("epoch"),
+        "val_macro_f1": ckpt["best"].get("val_macro_f1"),
         "test": test,
         "field": field,
-        "latency_desktop_gpu": measure_latency(model, cfg.image_size, device) if device.type == "cuda" else None,
-        "latency_desktop_cpu": measure_latency(model, cfg.image_size, torch.device("cpu")),
+        # Desktop latency of the INT8 graph runs reference (de)quantize ops and says nothing
+        # about real INT8 speed; INT8 latency is measured on the phone instead.
+        "latency_desktop_gpu": None if int8 or device.type != "cuda" else measure_latency(model, cfg.image_size, device),
+        "latency_desktop_cpu": None if int8 else measure_latency(model, cfg.image_size, torch.device("cpu")),
     }
     path = save_metrics(cfg, metrics, kind="accuracy")
     print(f"wrote {path}")

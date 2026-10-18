@@ -1,10 +1,10 @@
 # From-scratch baseline: all weights random, one LR for everything.
 train:
   mode: finetune
-  epochs: 15             # compute budget; the 30-epoch seed-0 run plateaued around epoch 15-20
+  epochs: 30
   lr: 1.0e-3
   backbone_lr_mult: 1.0
   weight_decay: 0.05
-  warmup_epochs: 1
+  warmup_epochs: 2
   label_smoothing: 0.0
   amp: true

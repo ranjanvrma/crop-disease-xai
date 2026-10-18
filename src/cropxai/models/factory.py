@@ -11,8 +11,8 @@ from torch import nn
 
 from cropxai.models.scratch_cnn import ScratchCNN
 
-# Kept deliberately small to fit a free-tier GPU budget: a from-scratch baseline,
-# the mobile student (MobileNetV3) and its distillation teacher (EfficientNet-B0).
+# Kept deliberately small to fit a free-tier GPU budget: a from-scratch reference,
+# MobileNetV3 (the mobile model that gets compressed) and EfficientNet-B0 (comparison).
 CNN_ARCHS = {"scratch_cnn", "efficientnet_b0", "mobilenetv3_large_100"}
 
 
@@ -35,7 +35,7 @@ def build_model(model_cfg: DictConfig, num_classes: int) -> nn.Module:
     """Create the model named by ``model_cfg.arch`` with a fresh classifier."""
     arch = model_cfg.arch
     if arch == "scratch_cnn":
-        return ScratchCNN(num_classes, drop_rate=model_cfg.drop_rate, stem_stride=model_cfg.get("stem_stride", 1))
+        return ScratchCNN(num_classes, drop_rate=model_cfg.drop_rate)
     if arch not in CNN_ARCHS:
         raise ValueError(f"Unknown arch '{arch}'. Options: {sorted(CNN_ARCHS)}")
 

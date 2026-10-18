@@ -1,0 +1,8 @@
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/prune_finetune.yaml]
+run_name: mnv3_fe_p50
+compress:
+  parent: mnv3_fe
+  prune_ratio: 0.5
+  int8: false
+explain:
+  methods: [gradcampp]   # comparison methods are run on the uncompressed models only

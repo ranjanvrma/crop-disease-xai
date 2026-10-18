@@ -14,6 +14,7 @@ import time
 import numpy as np
 import torch
 
+from cropxai.compress.variants import is_int8
 from cropxai.data.dataset import load_examples
 from cropxai.explain.cams import compute_cams
 from cropxai.explain.closed_form import explain_closed_form
@@ -34,6 +35,8 @@ def timed(fn, device: torch.device) -> tuple[object, float]:
 
 
 def verify(cfg) -> dict:
+    if is_int8(cfg):
+        raise SystemExit("INT8 models have no gradients, so there is no library Grad-CAM++ to compare against.")
     seed_everything(cfg.seed, cfg.deterministic)
     device = get_device()
     model, _, _ = load_trained(cfg, device)

@@ -35,6 +35,13 @@ def compute_cams(
     (N x K x H x W floats; 32 x 960 x 224 x 224 is ~6 GB), so it takes one image
     at a time and batches its K masked forward passes instead.
     """
+    if method == "closed_form":  # gradient-free Grad-CAM++: works on INT8 models too
+        from cropxai.explain.closed_form import explain_closed_form
+
+        return np.concatenate([
+            explain_closed_form(model, images[i:i + batch_size], torch.as_tensor(classes[i:i + batch_size]))
+            for i in range(0, len(images), batch_size)
+        ])
     cam_cls = METHODS[method]
     step = 1 if method == "scorecam" else batch_size
     out = []

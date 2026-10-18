@@ -5,7 +5,7 @@
 **Do compressed crop-disease models still explain themselves faithfully on a phone?**
 
 Crop-leaf disease classification with **Grad-CAM++** explanations, a staged **compression** pipeline
-(knowledge distillation → structured pruning → INT8) and **on-device** Android inference,
+(structured pruning → INT8 quantization) and **on-device** Android inference,
 with a closed-form, gradient-free Grad-CAM++ that runs in a single forward pass.
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
@@ -36,14 +36,13 @@ are **faithful**, and only if they survive the compression needed to run on chea
 
 This project measures that directly:
 
-1. **Accuracy vs. size:** how much accuracy each compression stage costs (distillation, then pruning at 30/50/70%, then INT8).
+1. **Accuracy vs. size:** how much accuracy each compression stage costs (structured pruning at 50/70%, INT8 quantization, and both stacked).
 2. **Explanation quality under compression:** whether Grad-CAM++ maps stay faithful and stable, and which compression stage changes them most.
 3. **On-device cost:** whether Grad-CAM++ runs in real time on a mid-range Android phone (Pixel 6a).
 4. **Lab → field gap:** models trained on clean lab images (PlantVillage) are evaluated on real field photos (PlantDoc), and the heatmaps show what the models rely on.
 
-The study is deliberately **compute-lean** so it can be run end to end on a free-tier GPU: one mobile
-student (MobileNetV3), a small distillation teacher (EfficientNet-B0) and a from-scratch baseline,
-rather than a large model zoo.
+The study is deliberately **compute-lean**: it compresses one mobile model (MobileNetV3) and compares
+it with EfficientNet-B0 and a from-scratch CNN, so everything runs on a free-tier GPU.
 
 ## Approach
 
@@ -51,9 +50,9 @@ rather than a large model zoo.
 flowchart LR
     A[PlantVillage<br/>lab images] --> B[Dedup + stratified split<br/>field-leak guard]
     F[PlantDoc + own photos<br/>field test only] --> B
-    B --> C[Baselines<br/>MobileNetV3 student · EfficientNet-B0 teacher<br/>scratch CNN]
+    B --> C[Baselines<br/>MobileNetV3 · EfficientNet-B0<br/>scratch CNN]
     C --> D[Explanations<br/>Grad-CAM++ · Grad-CAM · Score-CAM]
-    C --> E[Compression of MobileNetV3<br/>KD → pruning 30/50/70% → INT8]
+    C --> E[Compression of MobileNetV3<br/>pruning 50/70% · INT8]
     E --> D
     D --> G[Faithfulness · localisation<br/>stability vs. parent]
     E --> H[ExecuTorch export<br/>Android app + benchmarks]
@@ -96,10 +95,12 @@ reformulation, not an approximation.
 
 ### Table 1 — Accuracy & efficiency
 Field "strict" = argmax over all 38 classes (what the app does); "restricted" = argmax over the
-classes present in the field set. Phone latency is added with the Android app.
+classes present in the field set. Weights = parameters × 4 bytes (float) or × 1 byte (INT8). Desktop
+latency is not reported for INT8 models (they run reference ops on a desktop); phone latency is added
+with the Android app.
 
 <!-- table1:start -->
-| Model | Params (M) | Size (MB) | Top-1 PV test (%) | Macro-F1 PV test (%) | ECE PV test | Field top-1 strict (%) | Field top-1 restricted (%) | Desktop GPU latency (ms) | Desktop CPU latency (ms) |
+| Model | Params (M) | Weights (MB) | Top-1 PV test (%) | Macro-F1 PV test (%) | ECE PV test | Field top-1 strict (%) | Field top-1 restricted (%) | Desktop GPU latency (ms) | Desktop CPU latency (ms) |
 |---|---|---|---|---|---|---|---|---|---|
 | — | — | — | — | — | — | — | — | — | — |
 <!-- table1:end -->
@@ -115,9 +116,14 @@ model). Pointing game and IoU need lesion masks, which exist only for the projec
 <!-- table2:end -->
 
 ### Table 3 — Stability under compression (vs. uncompressed parent)
-| Variant | Spearman ↑ | SSIM ↑ | Top-10% IoU ↑ |
-|---|---|---|---|
-| — | — | — | — |
+Closed-form Grad-CAM++ maps of each compressed variant compared with the uncompressed parent's, for
+the class the parent predicts, on the same images.
+
+<!-- table3:start -->
+| Variant | Spearman ↑ (test) | SSIM ↑ (test) | Top-10% IoU ↑ (test) | Spearman ↑ (field) | SSIM ↑ (field) | Top-10% IoU ↑ (field) |
+|---|---|---|---|---|---|---|
+| — | — | — | — | — | — | — |
+<!-- table3:end -->
 
 ### Table 4 — On-device (Pixel 6a)
 | Variant | Disk (MB) | Cold start | Latency median | Latency p95 | Heatmap latency | Peak memory | Battery / N inf. |
@@ -150,10 +156,10 @@ Each step is also a plain script that takes a config plus optional `key=value` o
 
 ```bash
 python scripts/prepare_data.py       --config configs/experiment/prepare_data.yaml
-python scripts/train.py              --config configs/experiment/mnv3_ft.yaml --seed 0
-python scripts/evaluate.py           --config configs/experiment/mnv3_ft.yaml --seed 0
-python scripts/verify_closed_form.py --config configs/experiment/mnv3_ft.yaml --seed 0
-python scripts/explain.py            --config configs/experiment/mnv3_ft.yaml --seed 0
+python scripts/train.py              --config configs/experiment/mnv3_fe_p50.yaml --seed 0
+python scripts/evaluate.py           --config configs/experiment/mnv3_fe_p50.yaml --seed 0
+python scripts/verify_closed_form.py --config configs/experiment/mnv3_fe_p50.yaml --seed 0
+python scripts/explain.py            --config configs/experiment/mnv3_fe_p50.yaml --seed 0
 python scripts/make_tables.py
 ```
 
@@ -186,30 +192,31 @@ tests/        unit + end-to-end tests on synthetic data
 | 1 | Data pipeline and field-leak guard | ✅ Done |
 | 2 | Models, training and evaluation code | ✅ Done |
 | 3 | Explanations and explanation metrics | ✅ Done |
-| — | Baseline experiments (5 experiments, 13 runs) | 🟡 In progress: 6 / 13 runs |
-| 4 | Compression of MobileNetV3 (KD → pruning → INT8) | ⬜ Not started |
-| 5 | Core experiment: explanations under compression | ⬜ Not started |
-| 6 | On-device closed-form Grad-CAM++ | 🟡 Method done and verified; export pending |
+| — | Baseline experiments | ✅ Done (results on Drive, to be committed) |
+| 4 | Compression of MobileNetV3: structured pruning + INT8 | 🟡 Code done and tested; runs pending (~1–1.5 GPU-hours) |
+| 5 | Core experiment: explanations under compression | 🟡 Metrics implemented (Table 2 + Table 3); computed together with Phase 4 |
+| 6 | On-device closed-form Grad-CAM++ | 🟡 Method verified, and already used for the INT8 models; app export pending |
 | 7 | ExecuTorch export, Android app, Pixel 6a benchmarks | ⬜ Not started |
 | 8 | Paper and release (dashboard as a stretch goal) | ⬜ Not started |
 
-### Scope change (18 Oct 2026): a compute-lean study
+### Scope: a compute-lean study
 
-The original plan trained a large model zoo, which needed well over 20 GPU-hours on top of the
-compression grid. That does not fit a free-tier GPU, so the study was cut to what the research
-question actually needs:
+The first plan trained a large model zoo and then a full compression grid: more than 25 GPU-hours,
+which does not fit a free-tier GPU. The study now builds on the models already trained, so all
+remaining GPU work fits in about 1–1.5 hours (estimate):
 
-| Change | Why |
+| Decision | Why |
 |---|---|
-| Dropped ResNet-50, EfficientNet-B3 and DeiT-S | comparison rows only; together they were most of the remaining compute |
-| Teacher is a fine-tuned EfficientNet-B0, trained with one seed | a distillation teacher needs to be good, not reported with error bars |
-| Compression is applied to one student, MobileNetV3 | the model built for phones, with the GAP + linear head the on-device method needs |
-| Fine-tuning shortened from 15 to 10 epochs | compute budget, not tuned |
-| Scratch CNN: stride-2 first layer and 15 instead of 30 epochs | about 4× fewer FLOPs per image; its earlier 30-epoch run is superseded and retrains automatically |
-| Score-CAM only for the uncompressed models; no quantization-aware training; Pixel 6a only | the most expensive evaluation and engineering steps |
+| The parent of every compressed model is the finished `mnv3_fe` (3 seeds) | no new baseline training is needed |
+| Compression = structured pruning (50%, 70%) and INT8 post-training quantization, alone and stacked | pruning needs only a 2-epoch fine-tune; INT8 needs no training at all |
+| Knowledge distillation dropped | it needed a teacher and a full student training run, most of the remaining cost |
+| ResNet-50, EfficientNet-B3, DeiT-S dropped; EfficientNet-B0 kept as a comparison row | comparison models only |
+| Scratch CNN reported as a single run (n = 1), clearly marked | its two remaining seeds would cost more than all of Phase 4 |
+| Score-CAM only for the uncompressed models; Grad-CAM++ for every variant | Score-CAM is the most expensive method |
+| INT8 models are explained with the closed-form Grad-CAM++ | INT8 graphs have no gradients; this is exactly the on-device setting |
 
-Unchanged: three seeds for every reported number, the untouched field test set, and the finished
-feature-extraction results.
+Unchanged: three seeds for every reported number (except the labelled scratch reference) and the
+untouched field test set.
 
 ### ✅ Done
 
@@ -222,7 +229,6 @@ feature-extraction results.
 
 **Phase 2: Models, training, evaluation**
 - [x] Scratch CNN, EfficientNet-B0 and MobileNetV3 (head replaced by GAP + one linear layer)
-- [x] Feature extraction (frozen backbone) and fine-tuning (lower learning rate for the backbone)
 - [x] Evaluation: top-1, macro-F1, calibration (ECE), field accuracy (strict and restricted), size, desktop latency
 - [x] Training that resumes after a disconnect, and skips runs already finished with the current settings
 - [x] Colab runner: one *Run all* works through the whole experiment queue
@@ -231,51 +237,49 @@ feature-extraction results.
 - [x] Grad-CAM++, Grad-CAM and Score-CAM on the layer that feeds global average pooling
 - [x] Faithfulness metrics (deletion/insertion AUC, Average Drop, Increase in Confidence, ROAD on the GPU) and localisation metrics (pointing game, IoU)
 - [x] Closed-form, gradient-free Grad-CAM++, tested equal to the library version for every CNN and confirmed on trained checkpoints
-- [x] Automatic README tables from the results files
 
-### 🟡 In progress: baseline experiments
+**Baselines** (3 seeds unless noted)
 
-| Experiment | Purpose | Runs done |
+| Experiment | What | Runs |
 |---|---|---|
-| `mnv3_fe` | MobileNetV3, frozen backbone | 3 / 3 |
-| `effnet_b0_fe` | EfficientNet-B0, frozen backbone | 3 / 3 |
-| `mnv3_ft` | **the student**: parent of every compressed variant | 0 / 3 |
-| `effnet_b0_ft` | **distillation teacher** (1 seed) | 0 / 1 |
-| `scratch_cnn` | the baseline to beat (lighter version) | 0 / 3 |
+| `mnv3_fe` | MobileNetV3, frozen backbone: **parent of every compressed variant** | 3 / 3 |
+| `effnet_b0_fe` | EfficientNet-B0, frozen backbone: comparison row | 3 / 3 |
+| `scratch_cnn` | from-scratch CNN: single-run reference | 1 / 1 |
 
-Roughly 3–4 GPU-hours remain for the baselines (estimate). Finished results so far are on Google
-Drive and still need to be committed to `results/metrics/`.
+**Phase 4 code** (tested end to end on synthetic data)
+- [x] Structured pruning with Torch-Pruning (dependency graph, L2 magnitude), keeping the GAP + linear head, then a short fine-tune
+- [x] INT8 post-training quantization (PT2E, XNNPACK scheme, as used by ExecuTorch on Android), exported with two outputs: logits and feature maps
+- [x] Stability metrics against the uncompressed parent: Spearman, SSIM, top-10% IoU (Table 3)
+
+### 🟡 Next: compression runs (one *Run all*)
+
+| Experiment | Variant | Cost per seed (estimate) |
+|---|---|---|
+| `mnv3_fe_p50`, `mnv3_fe_p70` | 50% / 70% channels pruned, 2-epoch fine-tune | ~8 min |
+| `mnv3_fe_int8` | INT8 of the parent | ~4 min |
+| `mnv3_fe_p50_int8`, `mnv3_fe_p70_int8` | pruning, then INT8 | ~4 min |
+
+15 runs in total, about 1–1.5 GPU-hours. The INT8 timing assumes the quantized graph runs on the
+GPU; if Colab falls back to the CPU (the log says so), INT8 evaluation is slower.
 
 ### ⬜ To do
 
-**Phase 4: Compression** *(needs `mnv3_ft` and the teacher)*
-- [ ] Knowledge distillation: EfficientNet-B0 teacher → MobileNetV3 student
-- [ ] Structured pruning with Torch-Pruning at 30 / 50 / 70%, a short fine-tune after each level, keeping the GAP + linear head
-- [ ] INT8 post-training quantization of each variant
-- [ ] One config per method × level, three seeds each; this grid is the main results table
-
 **Phase 5: Core experiment**
-- [ ] Recompute faithfulness and localisation metrics at every compression level (Grad-CAM++ and Grad-CAM)
-- [ ] Stability against the uncompressed parent: Spearman, SSIM, top-10% IoU (Table 3)
 - [ ] Centrepiece figure: accuracy vs. size and explanation quality vs. size on one plot
+- [ ] Which stage changes the explanations most: pruning, quantization, or both?
 - [ ] Does compression make lab → field shortcut learning better or worse?
 
-**Phase 6: On-device explanations**
-- [ ] Export the model with two outputs (logits + final feature maps) and ship the classifier weights with the app
-- [ ] Reproduce the closed-form heatmap from the exported model and compare it with the desktop result
-
-**Phase 7: Android app and benchmarks**
-- [ ] ExecuTorch export (XNNPACK backend) in its own environment
+**Phase 6–7: On-device**
+- [ ] ExecuTorch export (XNNPACK backend) of the chosen variant in its own environment
 - [ ] Kotlin + CameraX app: camera → label + confidence → heatmap overlay → "unsure" state below a confidence threshold tuned on validation data
+- [ ] Check that the app's closed-form heatmap matches the desktop result
 - [ ] Pixel 6a benchmarks: size, cold start, latency median/p95, heatmap latency, peak memory (Table 4)
 
 **Phase 8: Release**
+- [ ] Commit the results from Drive into `results/metrics/` (fills Tables 1–3 automatically)
 - [ ] Paper (intro, related work, method, setup, results, on-device, limitations) with tables generated from the results
 - [ ] Trained weights and lesion annotations published; demo video; Android APK
 - [ ] *Stretch:* web results dashboard that reads `results/`
-
-**Estimated remaining compute:** about 6–8 GPU-hours in total (baselines plus compression), down
-from 25+ under the original plan. These are estimates from measured epoch times, not guarantees.
 
 ### 📋 Needs to be done by hand
 - [ ] Collect 150–300 own field leaf photos (classes PlantVillage covers), labels confirmed by a plant expert
@@ -283,10 +287,12 @@ from 25+ under the original plan. These are estimates from measured epoch times,
 - [ ] Re-run the literature search before writing up (`research/notes/gap.md`): the research gap must be re-checked, not assumed
 - [ ] Add a license to the repository
 
-### Known limitations so far
+### Known limitations
+- Compression is studied on one architecture (MobileNetV3) whose backbone was trained with feature extraction; other architectures and fully fine-tuned parents are future work.
+- No knowledge-distillation stage, so the study covers pruning and quantization only.
+- The scratch CNN is a single run, not a 3-seed result.
 - PlantDoc is web-scraped and contains some images that are not single leaves (e.g. fruit, whole fields). They are kept as-is: removing images after seeing results would amount to tuning on the test set.
 - Feature-extraction runs use 6 epochs, chosen from the validation curve only.
-- With a smaller model set, conclusions about explanations under compression are drawn from one student architecture; generalising to other architectures is left to future work.
 
 ## Datasets
 | Dataset | Role | Source |

@@ -11,11 +11,19 @@ import argparse
 
 from cropxai import REPO_ROOT
 from cropxai.utils.config import resolve_path
-from cropxai.eval.tables import accuracy_table, explanation_table, load_runs, replace_between_markers, to_markdown
+from cropxai.eval.tables import (
+    accuracy_table,
+    explanation_table,
+    load_runs,
+    replace_between_markers,
+    stability_table,
+    to_markdown,
+)
 
 TABLES = [
     ("table1", "table1_accuracy", "accuracy", accuracy_table),
     ("table2", "table2_explanation", "explanation", explanation_table),
+    ("table3", "table3_stability", "explanation", stability_table),
 ]
 
 

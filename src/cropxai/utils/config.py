@@ -41,7 +41,7 @@ def resolve_path(p: str | Path) -> Path:
 
 # Keys that change what a training run produces. Paths, logging and the
 # explanation settings don't, so editing them never forces a retrain.
-TRAINING_KEYS = ["seed", "deterministic", "image_size", "batch_size", "data", "augment", "model", "train"]
+TRAINING_KEYS = ["seed", "deterministic", "image_size", "batch_size", "data", "augment", "model", "train", "compress"]
 
 
 def training_fingerprint(cfg: DictConfig) -> str:

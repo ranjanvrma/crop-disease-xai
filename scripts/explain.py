@@ -18,9 +18,11 @@ os.environ.setdefault("TQDM_DISABLE", "1")  # Score-CAM's per-batch progress bar
 import numpy as np
 import torch
 
+from cropxai.compress.variants import compress_cfg, root_config
 from cropxai.data.dataset import load_examples
 from cropxai.eval.faithfulness import average_drop_and_increase, deletion_insertion, road_score
 from cropxai.eval.localisation import localisation_metrics
+from cropxai.eval.stability import stability_metrics
 from cropxai.explain.cams import compute_cams
 from cropxai.explain.figures import save_examples_figure
 from cropxai.train.loop import get_device, load_trained
@@ -57,6 +59,7 @@ def explain(cfg) -> dict:
     device = get_device()
     model, _, _ = load_trained(cfg, device)
     e = cfg.explain
+    root = load_trained(root_config(cfg), device)[0] if compress_cfg(cfg) else None
 
     results = {}
     for split in e.splits:
@@ -79,6 +82,15 @@ def explain(cfg) -> dict:
             figure_cams[method] = cams[: e.n_figure_examples]
             print(f"[{cfg.run_name} seed{cfg.seed}] {split} {method} "
                   f"(cams {t1 - t0:.0f}s, metrics {time.perf_counter() - t1:.0f}s): {split_out[method]}", flush=True)
+        if root is not None:
+            # Stability: both models' closed-form Grad-CAM++ maps for the class the
+            # uncompressed parent predicts, on the same images.
+            with torch.no_grad():
+                target = root(images).argmax(dim=1)
+            parent_cams = compute_cams(root, root_config(cfg).model.arch, "closed_form", images, target.tolist(), e.batch_size)
+            variant_cams = compute_cams(model, cfg.model.arch, "closed_form", images, target.tolist(), e.batch_size)
+            split_out["stability"] = stability_metrics(parent_cams, variant_cams)
+            print(f"[{cfg.run_name} seed{cfg.seed}] {split} stability vs parent: {split_out['stability']}", flush=True)
         results[split] = split_out
 
         fig_path = resolve_path(cfg.paths.results_dir) / "figures/heatmaps" / f"{cfg.run_name}_seed{cfg.seed}_{split}.png"

@@ -60,5 +60,6 @@ def to_heatmap(cam: torch.Tensor, size: tuple[int, int]) -> np.ndarray:
 def explain_closed_form(model: torch.nn.Module, images: torch.Tensor, classes: torch.Tensor) -> np.ndarray:
     """One forward pass -> heatmaps in [0, 1] at input resolution, (N, H, W)."""
     features = model.forward_features(images)
-    cam = closed_form_gradcampp(features.float(), model.get_classifier().weight.float(), classes)
+    weight = model.get_classifier().weight.float().to(features.device)
+    cam = closed_form_gradcampp(features.float(), weight, classes.to(features.device))
     return to_heatmap(cam, images.shape[-2:])

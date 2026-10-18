@@ -1,0 +1,9 @@
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/prune_finetune.yaml]
+run_name: mnv3_fe_p70_int8
+compress:
+  parent: mnv3_fe_p70
+  prune_ratio: null
+  int8: true             # post-training INT8 of the parent; no training
+  calib_images: 512      # from the training split
+explain:
+  methods: [closed_form] # INT8 has no gradients: gradient-free Grad-CAM++ (exact for float models)

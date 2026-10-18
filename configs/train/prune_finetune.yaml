@@ -1,0 +1,10 @@
+# Short fine-tune after structured pruning, starting from the parent's weights.
+train:
+  mode: finetune
+  epochs: 2
+  lr: 1.0e-4
+  backbone_lr_mult: 1.0  # all layers changed shape, so all of them re-adapt
+  weight_decay: 0.0
+  warmup_epochs: 0
+  label_smoothing: 0.0
+  amp: true

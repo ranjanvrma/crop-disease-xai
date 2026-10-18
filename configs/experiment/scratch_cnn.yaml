@@ -1,2 +1,4 @@
 inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/scratch_cnn.yaml, train/scratch.yaml]
 run_name: scratch_cnn
+# Single-run reference only (compute budget): reported with (n=1), not as a 3-seed result.
+seeds: [0]

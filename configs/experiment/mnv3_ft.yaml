@@ -1,2 +1,0 @@
-inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/finetune.yaml]
-run_name: mnv3_ft

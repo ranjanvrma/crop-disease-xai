@@ -47,13 +47,11 @@ Dataset zips in `MyDrive/cropxai/raw/` (see `data/README.md`).
 
 code("""
 # ============ SETTINGS: normally nothing to change, just Runtime -> Run all ============
-# The baseline queue, in priority order. Seeds come from each experiment's config
-# (3 seeds; the distillation teacher needs only 1). Finished work is skipped.
+# The whole queue, in order. Seeds come from each experiment's config. Finished work is skipped.
 EXPS = [
-    "mnv3_fe", "effnet_b0_fe",   # done
-    "mnv3_ft",                   # the mobile student (parent of every compressed variant)
-    "effnet_b0_ft",              # distillation teacher (1 seed)
-    "scratch_cnn",               # the baseline to beat
+    "mnv3_fe", "effnet_b0_fe", "scratch_cnn",          # baselines (done)
+    "mnv3_fe_p50", "mnv3_fe_p70",                      # structured pruning + 2-epoch fine-tune
+    "mnv3_fe_int8", "mnv3_fe_p50_int8", "mnv3_fe_p70_int8",  # INT8 post-training quantization
 ]
 
 TRAIN    = True     # train seeds that haven't finished (set False to only re-use existing checkpoints)
@@ -108,7 +106,7 @@ if repo_build != NOTEBOOK_BUILD:
 deps_hash = hashlib.md5(open("pyproject.toml", "rb").read()).hexdigest()
 marker = "/content/.cropxai_installed"
 if not os.path.exists(marker) or open(marker).read() != deps_hash:
-    sh('pip install -q -e ".[train,dev]"')
+    sh('pip install -q -e ".[train,compress,dev]"')
     open(marker, "w").write(deps_hash)
 else:
     print("packages: already installed on this machine")
@@ -161,6 +159,7 @@ code("""
 import json, sys
 from omegaconf import OmegaConf
 sys.path.insert(0, f"{REPO}/src")   # a fresh editable install isn't importable until a restart
+from cropxai.compress.variants import is_int8
 from cropxai.train.loop import checkpoint_path, complete_marker, is_trained
 from cropxai.utils.config import load_config
 
@@ -200,7 +199,7 @@ def run_seed(exp, seed):
 
     steps = [
         ("evaluate", EVALUATE, "accuracy", "evaluate.py"),
-        ("verify", VERIFY, "closed_form", "verify_closed_form.py"),
+        ("verify", VERIFY and not is_int8(cfg), "closed_form", "verify_closed_form.py"),  # INT8: no gradients
         ("explain", EXPLAIN, "explanation", "explain.py"),
     ]
     for name, wanted, kind, script in steps:
@@ -232,8 +231,8 @@ for exp in EXPS:
     done = 0
     for s in seeds:
         c = load_config(f"configs/experiment/{exp}.yaml", [f"seed={s}"])
-        results_ok = all(os.path.exists(f"{RESULTS}/metrics/{k}/{exp}_seed{s}.json")
-                         for k in ["accuracy", "closed_form", "explanation"])
+        kinds = ["accuracy", "explanation"] + ([] if is_int8(c) else ["closed_form"])
+        results_ok = all(os.path.exists(f"{RESULTS}/metrics/{k}/{exp}_seed{s}.json") for k in kinds)
         done += int(is_trained(c) and results_ok)   # results from older settings don't count
     total += len(seeds)
     done_total += done

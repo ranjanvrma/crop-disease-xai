@@ -13,7 +13,7 @@ import pandas as pd
 # Table 1 columns: (header, path into the metrics dict, scale, decimals)
 TABLE1 = [
     ("Params (M)", "params", 1e-6, 2),
-    ("Size (MB)", "size_mb_fp32", 1, 1),
+    ("Weights (MB)", lambda m: m["params"] * (1 if m.get("int8") else 4) / 1e6, 1, 2),
     ("Top-1 PV test (%)", "test.top1", 100, 2),
     ("Macro-F1 PV test (%)", "test.macro_f1", 100, 2),
     ("ECE PV test", "test.ece", 1, 3),
@@ -37,10 +37,27 @@ TABLE2 = [
     ("Pointing ↑ (field)", "field_test.{m}.pointing_game", 100, 1),
     ("IoU ↑ (field)", "field_test.{m}.iou", 1, 3),
 ]
-METHOD_NAMES = {"gradcampp": "Grad-CAM++", "gradcam": "Grad-CAM", "scorecam": "Score-CAM"}
+METHOD_NAMES = {"gradcampp": "Grad-CAM++", "closed_form": "Grad-CAM++ (closed form)",
+                "gradcam": "Grad-CAM", "scorecam": "Score-CAM"}
+
+# Table 3: compressed variant vs its uncompressed parent (closed-form Grad-CAM++ maps).
+TABLE3 = [
+    ("Spearman ↑ (test)", "test.stability.spearman", 1, 3),
+    ("SSIM ↑ (test)", "test.stability.ssim", 1, 3),
+    ("Top-10% IoU ↑ (test)", "test.stability.top10_iou", 1, 3),
+    ("Spearman ↑ (field)", "field_test.stability.spearman", 1, 3),
+    ("SSIM ↑ (field)", "field_test.stability.ssim", 1, 3),
+    ("Top-10% IoU ↑ (field)", "field_test.stability.top10_iou", 1, 3),
+]
 
 
-def _get(d: dict, dotted: str):
+def _get(d: dict, dotted):
+    """Value at a dotted path, or computed by ``dotted(d)`` when it is a function."""
+    if callable(dotted):
+        try:
+            return dotted(d)
+        except (KeyError, TypeError):
+            return None
     for key in dotted.split("."):
         if d is None:
             return None
@@ -69,7 +86,7 @@ def format_mean_std(values: list[float], decimals: int, expected_n: int) -> str:
 def _row(label: dict, group: list[dict], columns: list, expected_n: int, method: str = "") -> dict:
     row = dict(label)
     for header, path, scale, dec in columns:
-        path = path.format(m=method)
+        path = path.format(m=method) if isinstance(path, str) else path
         vals = [(_get(m, path) * scale) if _get(m, path) is not None else None for m in group]
         row[header] = format_mean_std(vals, dec, expected_n)
     return row
@@ -92,6 +109,16 @@ def explanation_table(runs: list[dict], expected_n: int = 3) -> pd.DataFrame:
         for method, name in METHOD_NAMES.items():
             if any(_get(m, f"test.{method}") for m in group):
                 rows.append(_row({"Model": run_name, "Method": name}, group, TABLE2, expected_n, method))
+    return pd.DataFrame(rows)
+
+
+def stability_table(runs: list[dict], expected_n: int = 3) -> pd.DataFrame:
+    """Table 3: one row per compressed variant, seeds aggregated."""
+    rows = []
+    for run_name in sorted({r["run_name"] for r in runs}):
+        group = [r["metrics"] for r in runs if r["run_name"] == run_name]
+        if any(_get(m, "test.stability") for m in group):
+            rows.append(_row({"Variant": run_name}, group, TABLE3, expected_n))
     return pd.DataFrame(rows)
 
 
