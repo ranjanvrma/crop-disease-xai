@@ -1,0 +1,12 @@
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/prune_finetune.yaml]
+run_name: mnv3_fe_p70_ft8
+# Same as mnv3_fe_p70, but an 8-epoch fine-tune instead of 2: the 2-epoch run
+# was still improving when it stopped (val top-1 ~52%).
+compress:
+  parent: mnv3_fe
+  prune_ratio: 0.7
+  int8: false
+train:
+  epochs: 8
+explain:
+  methods: [gradcampp]   # comparison methods are run on the uncompressed models only
