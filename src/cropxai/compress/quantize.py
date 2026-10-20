@@ -80,6 +80,9 @@ class QuantizedModel(nn.Module):
 
     def __init__(self, program: bytes, classifier: nn.Linear, device: torch.device):
         super().__init__()
+        # The graph uses torch.ops.quantized_decomposed.*, which only exist once their module is
+        # imported; a fresh process (evaluate/explain) must register them before deserializing.
+        import torch.ao.quantization.fx._decomposed  # noqa: F401
         ep = torch.export.load(io.BytesIO(program))
         self.device = torch.device("cpu")
         if device.type != "cpu":
