@@ -1,0 +1,174 @@
+{
+  "run_name": "effnet_b0_fe",
+  "seed": 1,
+  "kind": "explanation",
+  "metrics": {
+    "test": {
+      "sample_accuracy": 0.9599999785423279,
+      "n_masks": 0,
+      "gradcampp": {
+        "deletion_auc": 0.5318524844571948,
+        "insertion_auc": 0.7186090245035788,
+        "average_drop": 42.117857933044434,
+        "increase_in_confidence": 12.333333492279053,
+        "road": 0.10375883480533958,
+        "road_n_images": 100,
+        "n_images": 300
+      },
+      "gradcam": {
+        "deletion_auc": 0.4779303392395377,
+        "insertion_auc": 0.7518471049020687,
+        "average_drop": 25.566092133522034,
+        "increase_in_confidence": 23.666667938232422,
+        "road": 0.14720802869647742,
+        "road_n_images": 100,
+        "n_images": 300
+      },
+      "scorecam": {
+        "deletion_auc": 0.5367843480408192,
+        "insertion_auc": 0.7203944507241249,
+        "average_drop": 55.38339614868164,
+        "increase_in_confidence": 3.999999910593033,
+        "road": 0.11251041743904353,
+        "road_n_images": 50,
+        "n_images": 50
+      }
+    },
+    "field_test": {
+      "sample_accuracy": 0.20666666328907013,
+      "n_masks": 0,
+      "gradcampp": {
+        "deletion_auc": 0.24883429641835392,
+        "insertion_auc": 0.4260110971191898,
+        "average_drop": 60.3393018245697,
+        "increase_in_confidence": 17.666667699813843,
+        "road": 0.09945823097959874,
+        "road_n_images": 100,
+        "n_images": 300
+      },
+      "gradcam": {
+        "deletion_auc": 0.17532348786170285,
+        "insertion_auc": 0.5143878027812268,
+        "average_drop": 38.779592514038086,
+        "increase_in_confidence": 36.33333444595337,
+        "road": 0.15423065855822643,
+        "road_n_images": 100,
+        "n_images": 300
+      },
+      "scorecam": {
+        "deletion_auc": 0.20414891067892313,
+        "insertion_auc": 0.46282090459018943,
+        "average_drop": 59.20338034629822,
+        "increase_in_confidence": 15.999999642372131,
+        "road": 0.12777836486697197,
+        "road_n_images": 50,
+        "n_images": 50
+      }
+    }
+  },
+  "created_utc": "2026-10-20T10:06:11+00:00",
+  "git_commit": "4ac2d54",
+  "env": {
+    "python": "3.14.2",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0"
+  },
+  "config": {
+    "project": "crop-disease-xai",
+    "run_name": "effnet_b0_fe",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "seed": 1,
+    "deterministic": true,
+    "paths": {
+      "data_root": "data",
+      "checkpoints_dir": "checkpoints",
+      "splits_dir": "splits",
+      "results_dir": "results"
+    },
+    "wandb": {
+      "mode": "disabled",
+      "entity": null
+    },
+    "image_size": 224,
+    "num_workers": 2,
+    "batch_size": 64,
+    "data": {
+      "plantvillage_dir": "plantvillage/color",
+      "plantdoc_dirs": [
+        "plantdoc/train",
+        "plantdoc/test"
+      ],
+      "field_dir": "field",
+      "class_map": "configs/data/plantdoc_to_plantvillage.yaml",
+      "manifest": "splits/manifest_v1.csv",
+      "classes_file": "splits/classes_v1.json",
+      "split": {
+        "val": 0.1,
+        "test": 0.1,
+        "seed": 0
+      },
+      "dedup": {
+        "cross_hamming": 4
+      }
+    },
+    "augment": {
+      "crop_scale": [
+        0.7,
+        1.0
+      ],
+      "vflip_p": 0.5,
+      "jitter": 0.2,
+      "jitter_p": 0.5
+    },
+    "explain": {
+      "splits": [
+        "test",
+        "field_test"
+      ],
+      "n_images": 300,
+      "sample_seed": 0,
+      "methods": [
+        "gradcampp",
+        "gradcam",
+        "scorecam"
+      ],
+      "scorecam_n_images": 50,
+      "batch_size": 32,
+      "scorecam_batch_size": 128,
+      "deletion": {
+        "n_steps": 20,
+        "blur_kernel": 21,
+        "blur_sigma": 5.0
+      },
+      "road_percentiles": [
+        20,
+        40,
+        60,
+        80
+      ],
+      "road_n_images": 100,
+      "iou_threshold": 0.5,
+      "n_figure_examples": 8,
+      "verify_n_images": 64
+    },
+    "model": {
+      "arch": "efficientnet_b0",
+      "pretrained": true,
+      "drop_rate": 0.2
+    },
+    "train": {
+      "mode": "feature_extract",
+      "epochs": 6,
+      "lr": 0.001,
+      "backbone_lr_mult": 0.0,
+      "weight_decay": 0.0,
+      "warmup_epochs": 1,
+      "label_smoothing": 0.0,
+      "amp": true
+    }
+  }
+}
