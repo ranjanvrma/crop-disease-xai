@@ -1,0 +1,21 @@
+# Field-robust MobileNetV3: full fine-tune with field-style augmentation.
+# Goal: narrow the lab -> field gap (mnv3_fe: ~97% lab vs ~22% field) for the app.
+# Model selection still uses val macro-F1 only; the field set is evaluated once at the end.
+# NOT RUN YET. Estimated cost: ~25-30 min per seed on a free Colab T4, ~1.5 GPU-hours for 3 seeds
+# (a guess from the ~13 min feature-extraction runs; full backprop and heavier augmentation are slower).
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/finetune_field.yaml]
+run_name: mnv3_ft_field
+augment:
+  crop_scale: [0.25, 1.0]   # field photos show leaves at many scales, often off-centre
+  field:
+    rotate: 30
+    shear: 8
+    affine_p: 0.5
+    perspective_p: 0.3
+    blur_p: 0.3
+    noise_p: 0.3
+    shadow_p: 0.2
+    brightness: 0.3
+    brightness_p: 0.5
+    jpeg_p: 0.3
+    dropout_p: 0.3
