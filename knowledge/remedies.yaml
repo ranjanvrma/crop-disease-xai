@@ -1,0 +1,666 @@
+# Remedies and field guidance for every class the model can predict.
+#
+# Keys are the exact PlantVillage class names in splits/classes_v1.json
+# (tests/test_remedies.py checks that every class has exactly one entry).
+#
+# This is general, widely published integrated-pest-management guidance, written
+# for the app and NOT yet reviewed by a plant pathologist (`reviewed: false`).
+# Before any public release a qualified agronomist must check every entry
+# against local recommendations and registered products. Chemical names are
+# active ingredients, not brands; registration, rates and pre-harvest intervals
+# differ by country, so the app always tells the user to follow the product
+# label and local extension advice.
+#
+# Fields
+#   crop, name        display names
+#   kind              healthy | fungal | oomycete | bacterial | viral | pest | physiological
+#   pathogen          causal organism (scientific name), null for healthy
+#   urgency           none | low | medium | high  (how fast it spreads / damages)
+#   look_for          visible signs a farmer can check; the app shows these next
+#                     to the heatmap so the user can see whether the model looked
+#                     at the right thing
+#   cultural          non-chemical control and prevention, most important first
+#   organic           biological / organic-approved options
+#   chemical          active ingredients commonly registered for this problem
+version: 1
+reviewed: false
+disclaimer: >-
+  General guidance only, not a substitute for a local agronomist or extension
+  officer. Confirm the diagnosis before spraying, and always follow the product
+  label and your country's rules for any pesticide.
+
+classes:
+  Apple___Apple_scab:
+    crop: Apple
+    name: Apple scab
+    kind: fungal
+    pathogen: Venturia inaequalis
+    urgency: medium
+    look_for:
+      - Olive-green to dark brown velvety spots on leaves, often along veins
+      - Spots turn black and leaves may curl, yellow and drop early
+      - Dark, corky, cracked spots on fruit
+    cultural:
+      - Rake up and destroy or shred fallen leaves in autumn (the fungus overwinters there)
+      - Prune to open the canopy so leaves dry quickly
+      - Plant scab-resistant varieties for new trees
+    organic:
+      - Sulfur or lime-sulfur sprays from green tip until petal fall
+      - Copper sprays at early bud break only (copper can russet fruit later)
+    chemical:
+      - Captan or mancozeb as protectants during wet spring weather
+      - Myclobutanil, difenoconazole or trifloxystrobin (rotate groups to avoid resistance)
+
+  Apple___Black_rot:
+    crop: Apple
+    name: Black rot
+    kind: fungal
+    pathogen: Botryosphaeria obtusa
+    urgency: medium
+    look_for:
+      - Small purple spots on leaves that grow into brown "frog-eye" spots with a purple rim
+      - Fruit rot starting at the blossom end, turning brown then black with rings
+      - Sunken cankers on branches
+    cultural:
+      - Remove mummified fruit, dead wood and cankers; burn or bury them
+      - Prune in dry weather and disinfect tools
+      - Keep trees vigorous and avoid wounding bark
+    organic:
+      - Copper sprays at bud break
+      - Sulfur sprays during the season (less effective than for scab)
+    chemical:
+      - Captan, thiophanate-methyl or a strobilurin (e.g. trifloxystrobin) from petal fall onward
+
+  Apple___Cedar_apple_rust:
+    crop: Apple
+    name: Cedar apple rust
+    kind: fungal
+    pathogen: Gymnosporangium juniperi-virginianae
+    urgency: low
+    look_for:
+      - Bright yellow-orange spots on the upper leaf surface in spring
+      - Small tube-like structures on the underside of older spots
+      - Needs a nearby juniper / red cedar to complete its life cycle
+    cultural:
+      - Remove nearby junipers (within a few hundred metres) or their orange galls in spring
+      - Plant rust-resistant apple varieties
+    organic:
+      - Sulfur sprays from pink bud through early summer
+    chemical:
+      - Myclobutanil or another DMI fungicide from pink bud until about a month after petal fall
+
+  Apple___healthy:
+    crop: Apple
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green colour with no spots, rings, powdery growth or yellow patches
+    cultural:
+      - Keep monitoring weekly, especially after rain
+      - Clear fallen leaves and fruit in autumn
+    organic: []
+    chemical: []
+
+  Blueberry___healthy:
+    crop: Blueberry
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green colour with no spots, red blotches or leaf-edge burn
+    cultural:
+      - Keep soil acidic (pH about 4.5 to 5.5) and mulched
+      - Keep monitoring, especially in warm wet weather
+    organic: []
+    chemical: []
+
+  Cherry_(including_sour)___Powdery_mildew:
+    crop: Cherry
+    name: Powdery mildew
+    kind: fungal
+    pathogen: Podosphaera clandestina
+    urgency: medium
+    look_for:
+      - White to grey powdery patches on young leaves, often on the underside first
+      - Leaves curl upward and may blister
+    cultural:
+      - Prune for airflow and remove water sprouts and root suckers
+      - Avoid excess nitrogen fertiliser, which drives soft new growth
+    organic:
+      - Sulfur, potassium bicarbonate or horticultural oil sprays at first signs
+    chemical:
+      - Myclobutanil, trifloxystrobin or another registered mildew fungicide (rotate groups)
+
+  Cherry_(including_sour)___healthy:
+    crop: Cherry
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green colour with no powdery growth, holes or purple spots
+    cultural:
+      - Keep monitoring, especially in warm dry days with humid nights (mildew weather)
+    organic: []
+    chemical: []
+
+  Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot:
+    crop: Maize
+    name: Gray leaf spot
+    kind: fungal
+    pathogen: Cercospora zeae-maydis
+    urgency: medium
+    look_for:
+      - Long, narrow, rectangular tan to grey lesions running parallel to the leaf veins
+      - Lesions are boxed in by veins and can merge to kill whole leaves
+      - Usually starts on lower leaves
+    cultural:
+      - Rotate away from maize for at least one season
+      - Bury or remove infected crop residue (tillage), where erosion allows
+      - Plant tolerant hybrids
+    organic:
+      - No reliable organic spray; rely on rotation, residue management and resistant hybrids
+    chemical:
+      - Strobilurin (azoxystrobin, pyraclostrobin) or triazole fungicides at early tasselling when disease is rising
+
+  Corn_(maize)___Common_rust_:
+    crop: Maize
+    name: Common rust
+    kind: fungal
+    pathogen: Puccinia sorghi
+    urgency: low
+    look_for:
+      - Small, round to elongated, cinnamon-brown powdery pustules on both leaf surfaces
+      - Pustules rub off as rusty powder on your fingers
+    cultural:
+      - Plant resistant hybrids; most commercial hybrids tolerate it well
+      - Early planting avoids the worst spore pressure
+    organic:
+      - Usually not needed; monitor
+    chemical:
+      - Only for susceptible varieties with heavy early infection: triazole or strobilurin fungicides
+
+  Corn_(maize)___Northern_Leaf_Blight:
+    crop: Maize
+    name: Northern leaf blight
+    kind: fungal
+    pathogen: Exserohilum turcicum
+    urgency: medium
+    look_for:
+      - Long cigar-shaped grey-green to tan lesions, 3 to 15 cm long
+      - Lesions are not boxed in by veins (unlike gray leaf spot)
+      - Dark spore growth on lesions in humid weather
+    cultural:
+      - Plant resistant hybrids
+      - Rotate crops and manage infected residue
+    organic:
+      - No reliable organic spray; rely on rotation and resistant hybrids
+    chemical:
+      - Triazole or strobilurin fungicides around tasselling if lesions reach the upper leaves early
+
+  Corn_(maize)___healthy:
+    crop: Maize
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no streaks, pustules or long lesions
+    cultural:
+      - Keep scouting lower leaves after humid weather
+    organic: []
+    chemical: []
+
+  Grape___Black_rot:
+    crop: Grape
+    name: Black rot
+    kind: fungal
+    pathogen: Guignardia bidwellii
+    urgency: high
+    look_for:
+      - Round tan to reddish-brown leaf spots with a dark border and tiny black dots inside
+      - Berries turn brown, then shrivel into hard black "mummies"
+    cultural:
+      - Remove all mummified berries and infected canes before spring
+      - Prune and train for airflow; control weeds under the vines
+    organic:
+      - Copper or sulfur sprays (limited effect; start early)
+    chemical:
+      - Mancozeb or captan as protectants from early shoot growth
+      - Myclobutanil, tebuconazole or a strobilurin from bloom until berries are pea-sized
+
+  Grape___Esca_(Black_Measles):
+    crop: Grape
+    name: Esca (black measles)
+    kind: fungal
+    pathogen: Phaeomoniella chlamydospora and Phaeoacremonium species (wood-decay complex)
+    urgency: medium
+    look_for:
+      - '"Tiger-stripe" leaves: yellow or red bands between veins that dry to brown'
+      - Small dark spots on berries
+      - Dark streaks in the wood when a trunk or cordon is cut
+    cultural:
+      - There is no cure; cut out infected arms or retrain from a healthy sucker
+      - Prune late in dry weather and protect large pruning cuts
+      - Remove and burn dead vines and wood
+    organic:
+      - Pruning-wound protectants based on Trichoderma
+    chemical:
+      - No curative spray; registered pruning-wound sealants or protectants only
+
+  Grape___Leaf_blight_(Isariopsis_Leaf_Spot):
+    crop: Grape
+    name: Leaf blight (Isariopsis leaf spot)
+    kind: fungal
+    pathogen: Pseudocercospora vitis (Isariopsis clavispora)
+    urgency: low
+    look_for:
+      - Irregular dark red-brown spots on older leaves, often with a yellow edge
+      - Spots merge and leaves dry and fall early
+    cultural:
+      - Remove fallen leaves and improve canopy airflow
+    organic:
+      - Copper sprays
+    chemical:
+      - Mancozeb or other protectant fungicides used for other grape leaf diseases
+
+  Grape___healthy:
+    crop: Grape
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no spots, stripes or powdery or downy growth
+    cultural:
+      - Keep scouting after rain; black rot and mildews spread fast in wet weather
+    organic: []
+    chemical: []
+
+  Orange___Haunglongbing_(Citrus_greening):
+    crop: Citrus
+    name: Huanglongbing (citrus greening)
+    kind: bacterial
+    pathogen: Candidatus Liberibacter species, spread by the Asian citrus psyllid
+    urgency: high
+    look_for:
+      - '"Blotchy mottle": yellow patches that are different on each side of the leaf midrib'
+      - Yellow shoots, small upright leaves, twig dieback
+      - Small, lopsided, bitter fruit that stays green at the bottom
+    cultural:
+      - There is no cure. Report suspected cases to your plant protection office (it is a regulated disease in many countries)
+      - Remove and destroy confirmed infected trees so they do not infect others
+      - Plant only certified disease-free nursery trees
+    organic:
+      - Psyllid control with horticultural oils, kaolin clay or biological control (e.g. Tamarixia radiata)
+    chemical:
+      - Psyllid control with registered systemic or contact insecticides (e.g. imidacloprid, as allowed locally)
+      - Nutritional sprays can extend a tree's productive life but do not cure it
+
+  Peach___Bacterial_spot:
+    crop: Peach
+    name: Bacterial spot
+    kind: bacterial
+    pathogen: Xanthomonas arboricola pv. pruni
+    urgency: medium
+    look_for:
+      - Small water-soaked spots on leaves that turn purple-brown and fall out ("shot holes")
+      - Leaves yellow and drop, especially near the tips
+      - Pitted, cracked spots on fruit
+    cultural:
+      - Plant resistant varieties
+      - Avoid overhead irrigation and sites exposed to sandy, windy conditions
+      - Keep trees well fed but avoid excess nitrogen
+    organic:
+      - Copper sprays during dormancy and at leaf fall
+    chemical:
+      - Copper (dormant to early season) and oxytetracycline where registered during the season
+
+  Peach___healthy:
+    crop: Peach
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no holes, spots, curling or reddening
+    cultural:
+      - Keep scouting, especially after warm windy rain
+    organic: []
+    chemical: []
+
+  Pepper,_bell___Bacterial_spot:
+    crop: Bell pepper
+    name: Bacterial spot
+    kind: bacterial
+    pathogen: Xanthomonas species (X. euvesicatoria and relatives)
+    urgency: high
+    look_for:
+      - Small water-soaked spots on leaves that turn brown with a yellow halo
+      - Spots may merge; leaves yellow and drop
+      - Raised, scabby spots on fruit
+    cultural:
+      - Use certified disease-free seed and transplants
+      - Rotate away from peppers and tomatoes for 2 to 3 years
+      - Avoid overhead irrigation and do not work in wet plants
+    organic:
+      - Copper sprays (resistance is common; mix with mancozeb where allowed)
+    chemical:
+      - Copper plus mancozeb, or acibenzolar-S-methyl to boost the plant's defences
+
+  Pepper,_bell___healthy:
+    crop: Bell pepper
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no spots, yellow halos or curling
+    cultural:
+      - Keep scouting after rain or overhead watering
+    organic: []
+    chemical: []
+
+  Potato___Early_blight:
+    crop: Potato
+    name: Early blight
+    kind: fungal
+    pathogen: Alternaria solani
+    urgency: medium
+    look_for:
+      - Dark brown spots with concentric rings ("target" or "bullseye" pattern) on older, lower leaves
+      - Yellowing around the spots
+    cultural:
+      - Rotate crops for at least 2 years away from potato and tomato
+      - Keep plants well fed (stressed plants are hit harder); remove infected debris
+    organic:
+      - Copper sprays or Bacillus subtilis-based biofungicides
+    chemical:
+      - Chlorothalonil or mancozeb protectants; azoxystrobin, difenoconazole or boscalid (rotate groups)
+
+  Potato___Late_blight:
+    crop: Potato
+    name: Late blight
+    kind: oomycete
+    pathogen: Phytophthora infestans
+    urgency: high
+    look_for:
+      - Large, dark, water-soaked patches on leaves, often starting at the tips and edges
+      - White fuzzy growth on the underside of leaves in humid weather
+      - Brown, rotting patches on stems and tubers
+    cultural:
+      - Act fast; it can destroy a field within a week in cool wet weather
+      - Remove and destroy infected plants and volunteer potatoes; do not compost them
+      - Use certified seed, hill up soil over tubers, and kill haulms before harvest
+    organic:
+      - Copper sprays as a protectant before and during blight weather
+    chemical:
+      - Protectants (mancozeb, chlorothalonil) before infection; cymoxanil, mandipropamid, dimethomorph or fluazinam once blight is present (rotate groups)
+
+  Potato___healthy:
+    crop: Potato
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no ringed spots, dark water-soaked patches or white fuzz
+    cultural:
+      - Scout twice a week in cool wet weather (late blight conditions)
+    organic: []
+    chemical: []
+
+  Raspberry___healthy:
+    crop: Raspberry
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no yellow mottling, rust pustules or spots
+    cultural:
+      - Remove old fruiting canes after harvest to keep airflow good
+    organic: []
+    chemical: []
+
+  Soybean___healthy:
+    crop: Soybean
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no spots, rust pustules or mottling
+    cultural:
+      - Keep scouting from flowering onward
+    organic: []
+    chemical: []
+
+  Squash___Powdery_mildew:
+    crop: Squash
+    name: Powdery mildew
+    kind: fungal
+    pathogen: Podosphaera xanthii (also Golovinomyces species)
+    urgency: medium
+    look_for:
+      - White powdery spots on upper and lower leaf surfaces that spread to cover the leaf
+      - Older leaves yellow and die
+    cultural:
+      - Plant resistant varieties; space plants for airflow
+      - Remove badly infected leaves and destroy crop debris after harvest
+    organic:
+      - Sulfur, potassium bicarbonate, neem oil or horticultural oil sprays at first signs
+    chemical:
+      - Myclobutanil, quinoxyfen or a strobilurin (rotate groups; mildew resists quickly)
+
+  Strawberry___Leaf_scorch:
+    crop: Strawberry
+    name: Leaf scorch
+    kind: fungal
+    pathogen: Diplocarpon earlianum
+    urgency: low
+    look_for:
+      - Many small dark purple spots on leaves without a pale centre
+      - Spots merge and the leaf looks burnt or scorched at the edges
+    cultural:
+      - Plant resistant varieties and certified clean plants
+      - Renovate beds after harvest and remove old infected leaves
+      - Use drip irrigation instead of overhead watering
+    organic:
+      - Copper sprays
+    chemical:
+      - Captan or other registered strawberry leaf-spot fungicides from early spring
+
+  Strawberry___healthy:
+    crop: Strawberry
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no purple spots or scorched edges
+    cultural:
+      - Keep watering at the base of plants and scout after rain
+    organic: []
+    chemical: []
+
+  Tomato___Bacterial_spot:
+    crop: Tomato
+    name: Bacterial spot
+    kind: bacterial
+    pathogen: Xanthomonas species (X. perforans, X. euvesicatoria and relatives)
+    urgency: high
+    look_for:
+      - Small dark water-soaked spots on leaves, often with a yellow halo
+      - Spots may merge, leaves turn yellow and drop
+      - Raised, scabby spots on fruit
+    cultural:
+      - Use certified disease-free seed and transplants
+      - Rotate away from tomato and pepper for 2 to 3 years
+      - Avoid overhead irrigation; do not handle wet plants
+    organic:
+      - Copper sprays (often less effective because of copper-resistant strains)
+    chemical:
+      - Copper plus mancozeb, or acibenzolar-S-methyl to boost the plant's defences
+
+  Tomato___Early_blight:
+    crop: Tomato
+    name: Early blight
+    kind: fungal
+    pathogen: Alternaria solani (A. linariae)
+    urgency: medium
+    look_for:
+      - Brown spots with concentric rings ("target" pattern) on older lower leaves
+      - Yellowing around the spots; dark sunken spots near the stem end of fruit
+    cultural:
+      - Remove infected lower leaves; mulch to stop soil splashing onto leaves
+      - Rotate crops for 2 to 3 years; stake plants for airflow
+    organic:
+      - Copper sprays or Bacillus subtilis-based biofungicides
+    chemical:
+      - Chlorothalonil or mancozeb protectants; azoxystrobin, difenoconazole or boscalid (rotate groups)
+
+  Tomato___Late_blight:
+    crop: Tomato
+    name: Late blight
+    kind: oomycete
+    pathogen: Phytophthora infestans
+    urgency: high
+    look_for:
+      - Large, greasy, grey-green to brown patches on leaves, often at the edges
+      - White fuzzy growth on the underside in humid weather
+      - Firm, brown, greasy patches on fruit
+    cultural:
+      - Act fast; it spreads within days in cool wet weather
+      - Remove and destroy infected plants; do not compost them
+      - Do not grow tomatoes next to potatoes; destroy volunteer potatoes
+    organic:
+      - Copper sprays as a protectant before and during blight weather
+    chemical:
+      - Protectants (mancozeb, chlorothalonil) before infection; cymoxanil, mandipropamid or famoxadone once blight is present (rotate groups)
+
+  Tomato___Leaf_Mold:
+    crop: Tomato
+    name: Leaf mould
+    kind: fungal
+    pathogen: Passalora fulva (Cladosporium fulvum)
+    urgency: medium
+    look_for:
+      - Pale green to yellow spots on the upper leaf surface
+      - Olive-green to brown velvety mould on the underside of the same spots
+      - Most common in greenhouses and humid tunnels
+    cultural:
+      - Lower humidity below about 85%; ventilate greenhouses and space plants
+      - Remove infected leaves; plant resistant varieties
+    organic:
+      - Copper sprays
+    chemical:
+      - Chlorothalonil, mancozeb or a registered strobilurin
+
+  Tomato___Septoria_leaf_spot:
+    crop: Tomato
+    name: Septoria leaf spot
+    kind: fungal
+    pathogen: Septoria lycopersici
+    urgency: medium
+    look_for:
+      - Many small round spots (2 to 3 mm) with a grey-white centre and dark border
+      - Tiny black dots in the centre of the spots
+      - Starts on lower leaves and moves up
+    cultural:
+      - Remove infected lower leaves; mulch to stop soil splash
+      - Rotate crops and clear plant debris after harvest
+    organic:
+      - Copper sprays
+    chemical:
+      - Chlorothalonil or mancozeb protectants
+
+  Tomato___Spider_mites Two-spotted_spider_mite:
+    crop: Tomato
+    name: Two-spotted spider mite
+    kind: pest
+    pathogen: Tetranychus urticae (a mite, not a disease)
+    urgency: medium
+    look_for:
+      - Fine yellow-white speckling (stippling) on leaves
+      - Fine webbing on the underside of leaves; tiny moving dots under a magnifier
+      - Worst in hot, dry, dusty conditions
+    cultural:
+      - Spray the underside of leaves with water; reduce dust and drought stress
+      - Remove badly infested leaves; control weeds
+      - Avoid broad-spectrum insecticides that kill the mites' natural enemies
+    organic:
+      - Insecticidal soap or horticultural oil on the underside of leaves
+      - Release predatory mites (e.g. Phytoseiulus persimilis)
+    chemical:
+      - Registered miticides such as abamectin, bifenazate or spiromesifen (rotate to avoid resistance)
+
+  Tomato___Target_Spot:
+    crop: Tomato
+    name: Target spot
+    kind: fungal
+    pathogen: Corynespora cassiicola
+    urgency: medium
+    look_for:
+      - Brown spots with faint concentric rings and a light centre, sometimes cracking
+      - Spots on leaves, stems and fruit; can look like early blight
+    cultural:
+      - Improve airflow by pruning and staking; avoid overhead irrigation
+      - Remove crop debris and rotate crops
+    organic:
+      - Copper sprays (limited effect)
+    chemical:
+      - Chlorothalonil, mancozeb, or azoxystrobin / boscalid products (rotate groups)
+
+  Tomato___Tomato_Yellow_Leaf_Curl_Virus:
+    crop: Tomato
+    name: Tomato yellow leaf curl virus
+    kind: viral
+    pathogen: Tomato yellow leaf curl virus (Begomovirus), spread by whiteflies
+    urgency: high
+    look_for:
+      - Young leaves small, curled upward and yellow at the edges
+      - Plants stunted and bushy; flowers drop and little fruit sets
+      - Whiteflies on the underside of leaves
+    cultural:
+      - There is no cure. Pull out and destroy infected plants early (bag them first so whiteflies don't escape)
+      - Use resistant varieties and whitefly-free transplants; use insect-proof netting in nurseries
+      - Control weeds that host whiteflies; leave a tomato-free break between crops
+    organic:
+      - Yellow sticky traps, reflective mulch, insecticidal soap or neem oil against whiteflies
+    chemical:
+      - Whitefly control with registered insecticides (e.g. cyantraniliprole, pyriproxyfen, spirotetramat; rotate groups)
+
+  Tomato___Tomato_mosaic_virus:
+    crop: Tomato
+    name: Tomato mosaic virus
+    kind: viral
+    pathogen: Tomato mosaic virus (Tobamovirus)
+    urgency: medium
+    look_for:
+      - Light and dark green mosaic or mottled pattern on leaves
+      - Leaves may be narrow, wrinkled or fern-like; fruit may ripen unevenly
+    cultural:
+      - There is no cure. Remove and destroy infected plants
+      - Spreads by touch, tools and seed: wash hands, disinfect tools (e.g. with milk powder solution or a registered disinfectant), do not smoke near plants
+      - Use certified virus-free seed and resistant varieties
+    organic:
+      - No spray treats the virus; hygiene is the control
+    chemical:
+      - No chemical cure; disinfect tools, trays and greenhouse surfaces
+
+  Tomato___healthy:
+    crop: Tomato
+    name: Healthy
+    kind: healthy
+    pathogen: null
+    urgency: none
+    look_for:
+      - Even green leaves with no spots, rings, mottling, curling or webbing
+    cultural:
+      - Keep scouting twice a week, especially lower leaves after rain
+    organic: []
+    chemical: []
