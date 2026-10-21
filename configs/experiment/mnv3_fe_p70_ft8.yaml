@@ -1,0 +1,13 @@
+# Same as mnv3_fe_p70, but an 8-epoch fine-tune after pruning instead of 2.
+# Added 20 Oct: the 2-epoch budget left mnv3_fe_p50 at ~68% val top-1 (loss still falling).
+# Both budgets are reported. Estimated ~10 min per seed on an RTX 5070 Ti.
+inherits: [base.yaml, data/default.yaml, explain/default.yaml, model/mnv3.yaml, train/prune_finetune.yaml]
+run_name: mnv3_fe_p70_ft8
+train:
+  epochs: 8
+compress:
+  parent: mnv3_fe
+  prune_ratio: 0.7
+  int8: false
+explain:
+  methods: [gradcampp]   # comparison methods are run on the uncompressed models only

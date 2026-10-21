@@ -51,6 +51,7 @@ code("""
 EXPS = [
     "mnv3_fe", "effnet_b0_fe", "scratch_cnn",          # baselines (done)
     "mnv3_fe_p50", "mnv3_fe_p70",                      # structured pruning + 2-epoch fine-tune
+    "mnv3_fe_p50_ft8", "mnv3_fe_p70_ft8",              # same, 8-epoch fine-tune
     "mnv3_fe_int8", "mnv3_fe_p50_int8", "mnv3_fe_p70_int8",  # INT8 post-training quantization
 ]
 
