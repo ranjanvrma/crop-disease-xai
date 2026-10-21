@@ -1,0 +1,11 @@
+# Full fine-tune for field robustness: every layer trains (backbone at a tenth of
+# the head's learning rate), with label smoothing. Pair with augment.field.
+train:
+  mode: finetune
+  epochs: 8
+  lr: 1.0e-3
+  backbone_lr_mult: 0.1
+  weight_decay: 0.01
+  warmup_epochs: 1
+  label_smoothing: 0.1
+  amp: true

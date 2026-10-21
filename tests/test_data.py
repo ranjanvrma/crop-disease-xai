@@ -100,3 +100,18 @@ def test_dhash_stable_under_reencoding(tmp_path):
     img.resize((40, 40)).save(tmp_path / "b.jpg", quality=60)
     a, b = dhash(tmp_path / "a.png"), dhash(tmp_path / "b.jpg")
     assert bin(a ^ b).count("1") <= 4
+
+
+def test_field_augmentation_is_opt_in():
+    """The original experiments keep their exact pipeline; mnv3_ft_field adds the field corruptions."""
+    import numpy as np
+
+    from cropxai.data.transforms import train_transform
+    from cropxai.utils.config import load_config
+
+    base = train_transform(load_config("configs/experiment/mnv3_fe.yaml"))
+    field_cfg = load_config("configs/experiment/mnv3_ft_field.yaml", ["image_size=64"])
+    field = train_transform(field_cfg)
+    assert len(field.transforms) == len(base.transforms) + 8
+    out = field(image=np.random.default_rng(0).integers(0, 255, (80, 96, 3), dtype=np.uint8))["image"]
+    assert tuple(out.shape) == (3, 64, 64)
