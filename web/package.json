@@ -1,0 +1,21 @@
+{
+  "name": "cropxai-web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Offline crop-leaf disease app with on-device Grad-CAM++ explanations (any phone or desktop browser).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test test/*.test.mjs",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "onnxruntime-web": "1.30.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "vite": "8.3.4"
+  }
+}

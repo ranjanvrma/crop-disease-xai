@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>CropXAI</title>
+    <meta name="description" content="Offline crop-leaf disease check that shows where the model looked and why." />
+    <meta name="theme-color" content="#1f5130" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <img src="./icons/icon.svg" alt="" width="32" height="32" />
+        <h1>CropXAI</h1>
+      </div>
+      <span id="net" class="chip" aria-live="polite"></span>
+    </header>
+
+    <main>
+      <section id="banner" class="banner" hidden></section>
+
+      <section class="card pick" id="pick">
+        <h2>Check a leaf</h2>
+        <p class="muted">Photograph one leaf, filling most of the frame, in daylight. Everything runs on this device; no photo leaves it.</p>
+        <div class="buttons">
+          <label class="btn primary">
+            <input id="camera" type="file" accept="image/*" capture="environment" hidden />
+            Take photo
+          </label>
+          <label class="btn">
+            <input id="gallery" type="file" accept="image/*" hidden />
+            Choose image
+          </label>
+        </div>
+        <p class="drop muted" id="drop">or drop an image here</p>
+        <p id="status" class="status" role="status" aria-live="polite">Loading the model…</p>
+      </section>
+
+      <div id="result" hidden>
+        <section class="card verdict" id="verdict" aria-live="polite"></section>
+
+        <div class="grid">
+          <section class="card">
+            <h2>Where the model looked</h2>
+            <figure class="viewer">
+              <canvas id="overlay" aria-label="Leaf photo with heatmap"></canvas>
+              <figcaption>
+                <div class="legend"><span>low</span><i id="legend"></i><span>high</span></div>
+              </figcaption>
+            </figure>
+            <label class="slider">Heatmap strength
+              <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.6" />
+            </label>
+            <div class="classpick" id="classpick" role="group" aria-label="Show evidence for"></div>
+            <p class="muted small" id="heatnote"></p>
+          </section>
+
+          <section class="card">
+            <h2>Check it yourself</h2>
+            <p class="muted small">Does the bright area show these signs? If the model looked at the background, soil, or your hand, don't trust the result.</p>
+            <ul id="lookfor" class="ticks"></ul>
+            <h3>Is the heatmap honest?</h3>
+            <p class="muted small">We hide the brightest 20% of the image and ask the model again, then do the same with a random 20%. If the heatmap is right, hiding the bright part should hurt the score much more.</p>
+            <div id="faithful" class="faithful"></div>
+          </section>
+        </div>
+
+        <section class="card" id="remedy"></section>
+
+        <details class="card hood" id="hood">
+          <summary><h2>Under the hood</h2></summary>
+          <div id="hoodbody"></div>
+        </details>
+
+        <p class="center"><button class="btn" id="again" type="button">Check another leaf</button></p>
+      </div>
+    </main>
+
+    <footer class="muted small">
+      <p id="modelinfo"></p>
+      <p>Research prototype. Not a substitute for a local agronomist or extension officer.</p>
+    </footer>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
