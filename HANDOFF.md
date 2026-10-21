@@ -5,7 +5,7 @@
 > non-obvious decision made so far. If you use an AI assistant, start it with the prompt in
 > [§13](#13-starter-prompt-for-an-ai-assistant).
 >
-> *State as of 18 October 2026, commit `d8aeb7e`.*
+> *State as of 20 October 2026 (web app, remedies and field-robust experiment added on top of commit `4ac2d54`).*
 
 ---
 
@@ -29,8 +29,9 @@
 ## 1. What this project is
 
 Crop-leaf disease classification (38 PlantVillage classes) with **Grad-CAM++** heatmap explanations,
-**model compression** (structured pruning + INT8 quantization), and **on-device Android inference**
-via ExecuTorch.
+**model compression** (structured pruning + INT8 quantization), **remedies** for every class, and an
+**offline web app** (`web/`) that runs the model and the heatmap on any phone or desktop browser. An
+ExecuTorch Android build is kept only for the research benchmark (Pixel 6a).
 
 **Research question:** can a compressed crop-disease model running on a phone still give faithful
 Grad-CAM++ explanations, and how much does compression change what the model looks at?
@@ -66,14 +67,19 @@ The original project brief (a PDF, not in the repo) asked for exactly this.
 | — | Baseline runs: `mnv3_fe` (3 seeds), `effnet_b0_fe` (3 seeds), `scratch_cnn` (1 seed) | ✅ done, **results live on the owner's Google Drive, not yet in the repo** |
 | 4 | Compression: pruning 50/70% + INT8, alone and stacked (5 variants × 3 seeds) | 🟡 **code done and tested locally; never run on real data yet** |
 | 5 | Core experiment: explanation quality + stability under compression, centrepiece figure | 🟡 metrics done (computed during Phase 4); figure not written |
-| 6 | On-device closed-form Grad-CAM++ | 🟡 method verified, already used for INT8; app side not written |
-| 7 | ExecuTorch export, Kotlin/CameraX Android app, Pixel 6a benchmarks | ⬜ not started |
-| 8 | Paper, release (weights, annotations, APK, demo video); web dashboard = stretch goal | ⬜ not started |
+| 6 | On-device closed-form Grad-CAM++ | ✅ in the web app (`web/src/xai.js`), tested equal to the Python closed form |
+| — | **Offline web app (PWA)** for all phones + desktop: diagnosis, heatmap, contrastive heatmaps, live deletion check, score decomposition, remedies | ✅ built and tested with a demo model; **needs the real model exported** (`scripts/export_web.py`, CPU) |
+| — | Remedies knowledge base, all 38 classes (`knowledge/remedies.yaml`) | ✅ written; **not yet reviewed by a plant pathologist** |
+| — | Field-robust model `mnv3_ft_field` (full fine-tune + field-style augmentation) | 🟡 config + code done; not run (~1.5 GPU-hours, estimated) |
+| 7 | ExecuTorch export + Pixel 6a benchmarks (research Table 4 only) | ⬜ not started |
+| 8 | Paper, release (weights, annotations, demo video, deployed web app) | ⬜ not started |
 
 **The very next action:** one Colab *Run all* of the queue (Phase 4, ~1–1.5 GPU-hours, estimated),
 then commit the results. The owner's free Colab GPU quota was exhausted when this was written.
 
-Tests: `39 passed` locally (Windows, CPU torch 2.10, Python 3.14).
+Tests: `45 passed` (Linux, CPU torch 2.14, Python 3.13), plus `cd web && npm test` (4 parity tests)
+and `npm run test:e2e` (10 browser tests: 4 phone/tablet sizes + desktop, and offline mode). CI runs
+all of them on every pull request (`.github/workflows/ci.yml`).
 
 ---
 
@@ -94,18 +100,23 @@ These have been followed since day one. Keep them.
    `inherits:`. Scripts take `--config` plus `key=value` overrides.
 5. **Don't invent citations**, and don't claim the research gap is still open. The literature search
    must be re-run by a human before writing (`research/notes/gap.md`).
-6. **Mobile export: ExecuTorch only** (XNNPACK backend). PyTorch Mobile is deprecated; never use it.
-   The export environment must be separate from the training environment (`requirements/export.txt`);
-   their torch pins conflict. Read current ExecuTorch docs before writing export code.
+6. **The app is the offline web app in `web/`** (ONNX Runtime Web, WebAssembly), so it runs on any
+   phone model and on desktop from one codebase (owner's decision, 20 Oct). Its model comes only from
+   `scripts/export_web.py`, and `web/test/parity.test.mjs` must keep passing. **The research Android
+   benchmark uses ExecuTorch only** (XNNPACK backend); PyTorch Mobile is deprecated, never use it. The
+   ExecuTorch environment must be separate from training (`requirements/export.txt`); read current
+   ExecuTorch docs before writing that export code.
 7. **Never hand-edit `notebooks/colab_bootstrap.ipynb`.** Edit `notebooks/build_colab_notebook.py`
    and run it (`python notebooks/build_colab_notebook.py`).
 8. **No AI-assistant attribution in the repository:** no `Co-Authored-By` or "generated with" trailers
    in commits, and no such mentions in code or docs.
 9. **Keep it compute-lean.** Any new GPU work must state its estimated cost first. Don't reintroduce
    the dropped models (§12) without a reason and a budget.
-10. Research (`research/`, `notebooks/`) and the showcase (`web/`, if built) stay separate; both read
-    only `results/`.
-11. Style: simple over clever, small functions, type hints, docstrings, config-driven. Commit per milestone.
+10. Research (`research/`, `notebooks/`) and the app (`web/`) stay separate. The app reads only the
+    exported bundle; any accuracy it shows comes from `results/metrics/` via the export script.
+11. **Remedies** (`knowledge/remedies.yaml`) are general guidance until a plant pathologist reviews
+    them; keep `reviewed: false` until then, and never present them as verified.
+12. Style: simple over clever, small functions, type hints, docstrings, config-driven. Commit per milestone.
 
 ---
 
@@ -121,6 +132,7 @@ configs/
   train/scratch.yaml            scratch CNN, 30 epochs
   train/prune_finetune.yaml     2-epoch fine-tune after pruning
   explain/default.yaml          explanation sample sizes, ROAD/Score-CAM settings
+  app/default.yaml              web export: output folder, unsure-threshold target (tuned on val)
   experiment/*.yaml             one file per run (see §8)
 src/cropxai/
   data/       sources.py (scan datasets) · hashing.py (dHash) · manifest.py (dedup + split)
@@ -132,9 +144,11 @@ src/cropxai/
               faithfulness.py (deletion/insertion, Avg Drop, Inc. Conf, GPU ROAD) · localisation.py
               stability.py (Spearman, SSIM, top-10% IoU) · tables.py (README tables)
   compress/   prune.py (Torch-Pruning) · quantize.py (PT2E INT8, QuantizedModel) · variants.py
-  export/     empty: ExecuTorch export goes here (Phase 7)
+  export/     web.py (ONNX bundle for the web app); ExecuTorch export goes here too (Phase 7)
   utils/      config.py (YAML composition, training fingerprint) · seed.py · tracking.py (W&B + results JSON)
-scripts/      prepare_data · train · evaluate · verify_closed_form · explain · make_tables
+scripts/      prepare_data · train · evaluate · verify_closed_form · explain · make_tables · export_web
+knowledge/    remedies.yaml: symptoms, cultural/organic/chemical control for all 38 classes
+web/          offline web app (Vite + ONNX Runtime Web); see web/README.md
 splits/       manifest_v1.csv (every image: relative path, label, source, split, dHash), classes, summary
 notebooks/    build_colab_notebook.py → colab_bootstrap.ipynb (the Colab runner)
 results/      metrics/<kind>/<run>_seed<n>.json (source of truth) · figures/ (git-ignored PNGs) · tables/
@@ -184,8 +198,8 @@ settings exists.
 git clone https://github.com/ranjanvrma/crop-disease-xai.git
 cd crop-disease-xai
 python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[train,compress,dev]"   # Linux/macOS: .venv/bin/python
-.venv/Scripts/python -m pytest -q -p no:warnings                 # expect 39 passed
+.venv/Scripts/python -m pip install -e ".[train,compress,dev,web]"   # Linux/macOS: .venv/bin/python
+.venv/Scripts/python -m pytest -q -p no:warnings                 # expect 45 passed
 ```
 
 - The tests use tiny synthetic images (`tests/conftest.py`), so they need no datasets.
@@ -347,6 +361,14 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
 
 ## 10. What is left, in order
 
+0. **Web app, first real build (CPU only, minutes):** after the next Colab *Run all* (which now also
+   exports `WEB_MODEL`), copy `MyDrive/cropxai/web_model/*` into `web/public/model/`, `npm run build`,
+   and deploy `web/dist/` to any HTTPS static host (e.g. GitHub Pages). Then check it by hand on a real
+   iPhone (Safari) and a cheap Android phone: the automated browser tests use Chromium only.
+0b. **Field robustness (needs a GPU, owner's go-ahead):** run `mnv3_ft_field` (3 seeds, ~1.5 GPU-hours,
+   estimated) by adding it to `EXPS`. If its field accuracy beats `mnv3_fe` (decided on the results JSON,
+   not by peeking at field images), ship it in the app. Whether it also becomes the compression parent
+   is a research-scope decision for the owner.
 1. **Run Phase 4 on Colab:** one *Run all*. 15 runs, ~1–1.5 GPU-hours (estimated, assumes the INT8
    graph runs on GPU). If the log says *"INT8 model stays on CPU"*, INT8 evaluation is much slower;
    then consider evaluating INT8 on CPU with smaller explanation samples (and say so in the paper).
@@ -363,11 +385,8 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
      torch and torchao together after reading the current docs). Export the chosen variant with two
      outputs (logits, feature maps); quantize with ExecuTorch's own XNNPACK quantizer; lower to
      XNNPACK; produce a `.pte`. Store the classifier weight matrix (38 × C floats) as an asset.
-   - Android app (`android/`, Kotlin + CameraX, Material 3, high contrast, one-handed):
-     camera → preprocess (resize short side to 255, centre-crop 224, ImageNet mean/std) → `.pte` →
-     softmax → label + confidence → closed-form heatmap (formula in §1; ReLU, min-max normalise,
-     bilinear upsample, overlay) → **"unsure"** state below a confidence threshold **tuned on val**.
-   - Check that the app's heatmap matches the desktop closed form on the same images.
+   - A minimal Android benchmark harness for the `.pte` (latency, memory). The user-facing app is
+     `web/`, which already does preprocessing, the closed-form heatmap and the val-tuned "unsure" state.
    - Benchmarks on the **Pixel 6a** (primary device): size on disk, cold start, latency median + p95
      after warm-up, heatmap latency, peak memory; many iterations, fixed device, background apps off.
      Fill README Table 4 from a results JSON (`kind=ondevice`).
@@ -381,6 +400,8 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
      them, pointing game and IoU stay "—".
    - Re-run the literature search and fill `research/notes/gap.md`.
    - Add a license (none yet; the owner must choose).
+   - Have a plant pathologist or extension officer review `knowledge/remedies.yaml`, then set
+     `reviewed: true`.
 
 ---
 
@@ -429,6 +450,11 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
 | 18 Oct | **Scope cut 1:** dropped ResNet-50, EfficientNet-B3, DeiT-S | over 20 GPU-hours of comparison rows |
 | 18 Oct | **Scope cut 2:** dropped knowledge distillation, the teacher and fine-tuned baselines; compression = pruning 50/70% + INT8 on the finished `mnv3_fe`; scratch CNN kept as a single run (original 30-epoch settings, so its fingerprint still matches) | remaining GPU work had to fit ~1–1.5 hours |
 | 18 Oct | Score-CAM only for uncompressed models; INT8 explained by closed-form Grad-CAM++ | cost, and INT8 has no gradients (mirrors the phone) |
+| 20 Oct | **App = offline PWA with ONNX Runtime Web**, one codebase for every phone and desktop; ExecuTorch kept only for the Pixel 6a research benchmark | the app must run on all mobile devices (Android and iPhone, any model) and on desktop |
+| 20 Oct | App preprocessing reproduces albumentations/cv2 exactly (fixed-point bilinear) and the heatmap reproduces `closed_form.py`; both are tested | the app must see and explain exactly what the evaluated model sees |
+| 20 Oct | Unsure threshold = smallest confidence whose accepted **val** predictions reach 99% accuracy | rule 3; val is lab data, so the app also shows measured field accuracy |
+| 20 Oct | Added `mnv3_ft_field` (full fine-tune, field-style augmentation) as an opt-in experiment; existing fingerprints unchanged (checked) | 22% field accuracy makes the current model unfit for real farms |
+| 20 Oct | No AI attribution trailers in commits (rule 8 confirmed by the owner) | owner's choice |
 
 **Limitations this creates (state them in the paper):** compression is studied on one architecture
 whose backbone was trained by feature extraction (not full fine-tuning); there is no distillation
@@ -442,10 +468,11 @@ Paste this as the first message in a new session, opened in the repository root:
 
 ```
 You are continuing an existing research codebase: crop-disease-xai (crop-leaf disease
-classification + Grad-CAM++ explanations + pruning/INT8 compression + on-device Android via
-ExecuTorch). Before doing anything:
+classification + Grad-CAM++ explanations + pruning/INT8 compression + an offline web app for all
+phones and desktop (web/), with an ExecuTorch Android build for research benchmarks only). Before
+doing anything:
 1. Read HANDOFF.md completely, then README.md, data/README.md, configs/ and src/cropxai/.
-2. Run the tests: python -m pytest -q -p no:warnings (expect 39 passed).
+2. Run the tests: python -m pytest -q -p no:warnings (expect 45 passed).
 3. Summarise back to me: the current state, the rules in HANDOFF.md §3, and the next action in §10.
 Follow HANDOFF.md §3 strictly: never fabricate results; 3 seeds; never touch the field test set for
 training or tuning; config-driven; never hand-edit the Colab notebook (edit

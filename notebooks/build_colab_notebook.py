@@ -51,6 +51,7 @@ code("""
 EXPS = [
     "mnv3_fe", "effnet_b0_fe", "scratch_cnn",          # baselines (done)
     "mnv3_fe_p50", "mnv3_fe_p70",                      # structured pruning + 2-epoch fine-tune
+    "mnv3_fe_p50_ft8", "mnv3_fe_p70_ft8",              # same, 8-epoch fine-tune
     "mnv3_fe_int8", "mnv3_fe_p50_int8", "mnv3_fe_p70_int8",  # INT8 post-training quantization
 ]
 
@@ -58,6 +59,7 @@ TRAIN    = True     # train seeds that haven't finished (set False to only re-us
 EVALUATE = True     # in-domain test + PlantDoc field accuracy, size, latency
 VERIFY   = True     # closed-form vs library Grad-CAM++ check   (CNNs only)
 EXPLAIN  = True     # explanation metrics + heatmap figures      (CNNs only)
+WEB_MODEL = ("mnv3_fe", 0)   # (experiment, seed) exported for the offline web app; None to skip (CPU, ~3 min)
 
 FORCE     = False   # True = redo the selected steps even if results exist
 RUN_TESTS = False   # unit tests; only needed after code changes
@@ -106,7 +108,7 @@ if repo_build != NOTEBOOK_BUILD:
 deps_hash = hashlib.md5(open("pyproject.toml", "rb").read()).hexdigest()
 marker = "/content/.cropxai_installed"
 if not os.path.exists(marker) or open(marker).read() != deps_hash:
-    sh('pip install -q -e ".[train,compress,dev]"')
+    sh('pip install -q -e ".[train,compress,dev,web]"')
     open(marker, "w").write(deps_hash)
 else:
     print("packages: already installed on this machine")
@@ -238,6 +240,21 @@ for exp in EXPS:
     done_total += done
     print(f"  {exp:14s} {done}/{len(seeds)}  {'done' if done == len(seeds) else ''}")
 print(f"  overall: {done_total}/{total} seeds")
+""")
+
+md("## Web app model (CPU only)")
+
+code("""
+# Exports the chosen seed for the offline web app (web/). The unsure threshold is tuned on val.
+# Download MyDrive/cropxai/web_model/ and put its files in web/public/model/ (see web/README.md).
+if WEB_MODEL:
+    exp, seed = WEB_MODEL
+    cfg = load_config(f"configs/experiment/{exp}.yaml", [f"seed={seed}"])
+    if is_trained(cfg):
+        sh(f"python scripts/export_web.py --config configs/experiment/{exp}.yaml --seed {seed} "
+           f"--out {DRIVE}/web_model {ovr}")
+    else:
+        print(f"web model: {exp} seed {seed} is not trained yet, skipping")
 """)
 
 nb = {"cells": cells,
