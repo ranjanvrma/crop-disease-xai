@@ -40,3 +40,9 @@ Thumbs.db
 *.crdownload
 *.tar
 *.tar.gz
+
+# Web app: generated model bundle and test outputs
+web/public/model/
+web/test/fixtures/
+web/test-results/
+web/playwright-report/

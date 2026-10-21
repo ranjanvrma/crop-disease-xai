@@ -1,0 +1,12 @@
+# Offline web app export (scripts/export_web.py). Not part of any training
+# fingerprint: changing it never retrains anything.
+app:
+  out_dir: web/public/model
+  remedies: knowledge/remedies.yaml
+  unsure:
+    # Below this confidence the app says "unsure" instead of naming a disease.
+    # Tuned on the VALIDATION split only (HANDOFF rule 3): the smallest threshold
+    # whose accepted val predictions reach this accuracy.
+    target_val_accuracy: 0.99
+    # Used only when the val images are not available (e.g. --demo); recorded in model.json.
+    fallback_threshold: 0.5
