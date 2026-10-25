@@ -51,3 +51,17 @@ test('keeps working offline after the first visit', async ({ page, context }) =>
   await page.setInputFiles('#gallery', PHOTO);
   await expect(page.locator('#verdict h2')).toBeVisible();
 });
+
+test('warns when a photo is not a supported crop, and lists the crops', async ({ page }) => {
+  await ready(page);
+  await expect(page.locator('#supported .cropchips li')).toHaveCount(14);
+  await page.locator('[data-sample$="cat-not-a-crop.jpg"]').click();
+  await expect(page.locator('#verdict')).toHaveClass(/unsupported/);
+  await expect(page.locator('#remedy')).toContainText('No advice');
+  await page.locator('#anyway').click();
+  await expect(page.locator('#verdict')).not.toHaveClass(/unsupported/);
+  await expect(page.locator('#verdict')).toContainText('Shown on request');
+
+  await page.locator('[data-sample$="apple-scab-lab.jpg"]').click();
+  await expect(page.locator('#verdict h2')).toHaveText('Apple scab');
+});

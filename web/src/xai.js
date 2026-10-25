@@ -149,3 +149,33 @@ export function hidePixels(input, size, pixels) {
   for (const p of pixels) for (let c = 0; c < 3; c++) out[c * plane + p] = 0;
   return out;
 }
+
+/**
+ * "Is this a supported crop?" score (scripts/fit_ood.py): Mahalanobis distance of
+ * the pooled features to the nearest of the 38 class means, in a whitened
+ * `dims`-dimensional subspace, divided by sqrt(dims). Larger = less like the
+ * training photos. Returns { score, nearest } (nearest = class index).
+ */
+export function oodScore(features, [k, h, w], ood) {
+  const d = ood.dims;
+  const hw = h * w;
+  const z = new Float64Array(d);
+  for (let c = 0; c < k; c++) {
+    let pooled = 0;
+    for (let i = 0; i < hw; i++) pooled += features[c * hw + i];
+    pooled /= hw;
+    const row = c * d;
+    for (let j = 0; j < d; j++) z[j] += pooled * ood.proj[row + j];
+  }
+  let best = Infinity;
+  let nearest = -1;
+  for (let m = 0; m < ood.means.length / d; m++) {
+    let s = 0;
+    for (let j = 0; j < d; j++) {
+      const diff = z[j] - ood.means[m * d + j];
+      s += diff * diff;
+    }
+    if (s < best) { best = s; nearest = m; }
+  }
+  return { score: Math.sqrt(best / d), nearest };
+}

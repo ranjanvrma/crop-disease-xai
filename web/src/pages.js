@@ -182,6 +182,40 @@ async function explain() {
     <p class="note small"><b>Caveats.</b> Border peaks can also come from CNN zero-padding, so we treat the background explanation as the most likely one, not a proof.
       Some PlantDoc images are not single leaves (e.g. a watermarked peach-fruit stock photo and a whole cornfield, both visible below); they were kept on purpose so the field
       set is never hand-tuned. The field set was never used for training or for choosing models.</p>`;
+
+  // 7. supported-crop check (models/<id>/ood.json, scripts/fit_ood.py)
+  await oodFinding();
+}
+
+async function oodFinding() {
+  const index = await json('./models/index.json');
+  const r = await fetch(`./models/${index.default}/ood.json`);
+  if (!r.ok) { $('oodfinding').innerHTML = '<p class="muted small">The default model has no supported-crop check yet.</p>'; return; }
+  const o = await r.json();
+  const rep = o.report;
+  const p = (v) => `${Math.round(100 * v)}%`;
+  const hold = Object.entries(rep.holdout_crop_flagged).sort(([, a], [, b]) => a - b);
+  const crop = (c) => c.split('___')[0].replace('_(including_sour)', '').replace('_(maize)', '').replace(',_bell', ' pepper').replaceAll('_', ' ');
+  const fa = rep.field_accuracy;
+  $('oodfinding').innerHTML = `
+    <h3>How well it works (default model, ${esc(index.default)})</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th scope="col">Photos</th><th scope="col">How many</th><th scope="col">Flagged as not a supported crop</th><th scope="col">Caught by "Not sure" alone</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">PlantVillage lab photos (validation, used to set the threshold)</th><td>${rep.n.val}</td><td>${p(rep.flagged.val)}</td><td>${p(rep.unsure_flagged.val)}</td></tr>
+        <tr class="hl"><th scope="row">Not plants (people, a cat, objects, space, coins…)</th><td>${rep.n.nonplant}</td><td>${p(rep.flagged.nonplant)}</td><td>${p(rep.unsure_flagged.nonplant)}</td></tr>
+        <tr class="hl"><th scope="row">Other vegetation (aerial tree canopy, grass)</th><td>${rep.n.vegetation}</td><td>${p(rep.flagged.vegetation)}</td><td>${p(rep.unsure_flagged.vegetation)}</td></tr>
+        <tr><th scope="row">PlantDoc field photos of <em>supported</em> crops</th><td>${rep.n.field.toLocaleString()}</td><td>${p(rep.flagged.field)}</td><td>${p(rep.unsure_flagged.field)}</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small"><b>Not plants and other vegetation:</b> almost all caught, while only ${p(rep.flagged.val)} of lab photos are wrongly flagged. The confidence threshold alone lets most of them through with a confident-looking diagnosis.</p>
+    <p class="small"><b>Field photos:</b> most are flagged too, because they look unlike the lab photos. That is not wrong as a warning: on the ${fa.n_passed} field photos that pass,
+      the model is right ${p(fa.passed)} of the time, against ${p(fa.flagged)} on the ${fa.n_flagged.toLocaleString()} flagged ones. That is why the Diagnose page lets you see the guess anyway.</p>
+    <p class="small"><b>A leaf of a crop it does not know</b> is the hard case. We have no labelled photos of unsupported crops, so we used a proxy: refit the check with one crop left out and see
+      how many of that crop's lab photos get flagged. On average ${p(rep.holdout_crop_flagged_mean)}, from ${p(hold[0][1])} (${esc(crop(hold[0][0]))}) to ${p(hold.at(-1)[1])} (${esc(crop(hold.at(-1)[0]))}).
+      So about ${p(1 - rep.holdout_crop_flagged_mean)} of leaves of an unknown crop may still get a diagnosis, and the proxy is probably optimistic because the network itself did learn those crops.</p>
+    <p class="muted small">Threshold: ${esc(o.threshold_source)}. Fitted on ${esc(o.fitted_on)}, ${o.dims} directions. The non-plant and vegetation photos are public sample images
+      (scikit-image, matplotlib, DeepForest), a small set; treat those rates as indicative. Source: <code>scripts/fit_ood.py</code>.</p>`;
 }
 
 async function about() {

@@ -41,6 +41,7 @@
           <li><a href="#compression">What compression does to the heatmaps</a></li>
           <li><a href="#calibration">Can we trust the confidence?</a></li>
           <li><a href="#field-gap">Why field accuracy is low: the background shortcut</a></li>
+          <li><a href="#unsupported">Spotting photos of things it was not trained on</a></li>
           <li><a href="#gallery">Heatmap examples</a></li>
         </ol>
       </nav>
@@ -131,8 +132,23 @@
         <p class="muted small">Figures straight from <code>scripts/explain.py</code>; columns are the photo, Grad-CAM++, Grad-CAM and Score-CAM.</p>
       </section>
 
+      <section class="card" id="unsupported">
+        <h2>7. Spotting photos of things it was not trained on</h2>
+        <p>A classifier always answers with one of the classes it knows. Show it a cat and it will name a tomato disease, sometimes with high
+          confidence, so the "Not sure" threshold alone does not catch it.</p>
+        <p>So the app also asks <b>"does this photo look like anything in the training set?"</b>. It averages the network's feature maps into one
+          number per channel (the same numbers the final layer uses), then measures how far that point is from the average of each of the 38 classes in the
+          training photos, using the <b>Mahalanobis distance</b> (which accounts for how much the features normally vary and how they move together).
+          If even the closest class is far away, the app shows <em>"This doesn't look like a leaf from one of the supported crops"</em> instead of a diagnosis.
+          The check costs no extra model run: it reuses the features already computed for the heatmap.</p>
+        <div id="oodfinding"></div>
+        <p class="note small"><b>Limits.</b> This is a distance in the model's own feature space, so it only knows what the model learned to see. A leaf of an unsupported
+          plant that looks like a supported one (for example another nightshade next to tomato) can pass, and a real field photo of a supported crop can be flagged,
+          because field photos also look unlike the lab training photos. The threshold was set using lab validation photos only; the other photos were used only to measure it.</p>
+      </section>
+
       <section class="card" id="gallery">
-        <h2>7. Heatmap examples across models</h2>
+        <h2>8. Heatmap examples across models</h2>
         <p class="muted small">The same lab test photos for each model (seed 0). Compare the uncompressed model with its INT8 and pruned versions.</p>
         <div class="gallery">
           <figure><img src="./figures/mnv3_fe_seed0_test.jpg" alt="mnv3_fe heatmaps" loading="lazy" /><figcaption>mnv3_fe (parent)</figcaption></figure>

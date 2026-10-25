@@ -2,7 +2,7 @@ import { drawHidden, drawMap, drawOverlay, drawRGB, legendGradient } from './col
 import { loadBundle, run } from './model.js';
 import { preprocess, shortSideSize } from './preprocess.js';
 import {
-  featureMap, heatmap, hidePixels, pixelsToHide, scoreDecomposition, softmax, topK,
+  featureMap, heatmap, hidePixels, oodScore, pixelsToHide, scoreDecomposition, softmax, topK,
 } from './xai.js';
 
 const $ = (id) => document.getElementById(id);
@@ -82,6 +82,7 @@ async function useModel(id) {
   try {
     bundle = await loadBundle(new URL(`./models/${id}/`, document.baseURI).href);
     showModelInfo();
+    renderSupported();
     $('status').textContent = 'Ready.';
     document.body.dataset.ready = 'true';
     if (lastFile) await analyse(lastFile);
@@ -150,7 +151,8 @@ async function analyse(file) {
     const out = await run(bundle, pre.input);
     const probs = softmax(out.logits);
     const ranked = topK(probs, 5);
-    current = { px, pre, out, probs, ranked, tPre, shown: ranked[0][0] };
+    const ood = bundle.ood ? oodScore(out.features, bundle.meta.feature_shape, bundle.ood) : null;
+    current = { px, pre, out, probs, ranked, ood, tPre, shown: ranked[0][0] };
     render();
     $('status').textContent = '';
     $('result').hidden = false;
@@ -173,6 +175,44 @@ function render() {
   renderHood();
 }
 
+/** True when the photo does not look like any of the training photos (see scripts/fit_ood.py). */
+function flagged() {
+  return !!current.ood && current.ood.score > bundle.ood.threshold;
+}
+
+/** Flagged, and the user has not asked to see the model's guess anyway. */
+function isUnsupported() {
+  return flagged() && !current.showAnyway;
+}
+
+/** The 14 crops, each with its conditions, from the bundle's remedies. */
+function cropsList() {
+  const crops = new Map();
+  for (const name of bundle.meta.classes) {
+    const r = bundle.remedies.classes[name];
+    const crop = r?.crop ?? name.split('___')[0].replaceAll('_', ' ');
+    if (!crops.has(crop)) crops.set(crop, []);
+    crops.get(crop).push(r ? (r.kind === 'healthy' ? 'Healthy' : r.name) : name.split('___')[1].replaceAll('_', ' '));
+  }
+  return [...crops].sort(([a], [b]) => a.localeCompare(b));
+}
+
+function cropChips() {
+  return `<ul class="cropchips">${cropsList().map(([crop]) => `<li>${esc(crop)}</li>`).join('')}</ul>`;
+}
+
+function renderSupported() {
+  const crops = cropsList();
+  $('supported').innerHTML = `
+    <h2>What it can check</h2>
+    <p>${crops.length} crops and ${bundle.meta.classes.length} conditions (healthy included). Other plants, fruits, flowers, whole fields and non-plant photos are <b>not supported</b>.
+    The app warns you when a photo looks unlike its training leaves, but it can miss a leaf of another plant, so check the list.</p>
+    ${cropChips()}
+    <details class="more"><summary>Show all ${bundle.meta.classes.length} conditions</summary>
+      <dl class="croplist">${crops.map(([crop, conds]) => `<div><dt>${esc(crop)}</dt><dd>${conds.map(esc).join(' · ')}</dd></div>`).join('')}</dl>
+    </details>`;
+}
+
 function isUnsure() {
   return current.ranked[0][1] < bundle.meta.unsure_threshold;
 }
@@ -181,9 +221,24 @@ function renderVerdict() {
   const [best, p] = current.ranked[0];
   const r = bundle.remedies.classes[bundle.meta.classes[best]];
   const el = $('verdict');
+  if (isUnsupported()) {
+    el.className = 'card verdict unsupported';
+    el.innerHTML = `
+      <p class="eyebrow">Not a supported crop?</p>
+      <h2>This doesn't look like a leaf from one of the supported crops</h2>
+      <p>The photo is very different from every leaf photo the model learned from, so a diagnosis would be unreliable. The model only knows these ${cropsList().length} crops:</p>
+      ${cropChips()}
+      <p>If it <em>is</em> one of them, the photo is probably too different from the training photos (whole plant, busy background, several leaves).
+      Retake it: one leaf, close up, filling most of the frame, on a plain background, in daylight.</p>
+      <p><button type="button" class="btn small" id="anyway">Show the model's guess anyway</button></p>
+      <p class="muted small">Unusualness ${current.ood.score.toFixed(2)}; the warning shows above ${bundle.ood.threshold.toFixed(2)}. <a href="./explain.html#unsupported">How this check works</a></p>`;
+    $('anyway').onclick = () => { current.showAnyway = true; render(); };
+    return;
+  }
   if (isUnsure()) {
     el.className = 'card verdict unsure';
     el.innerHTML = `
+      ${flagged() ? '<p class="banner">Shown on request: this photo was flagged as unlike the training photos.</p>' : ''}
       <p class="eyebrow">Not sure</p>
       <h2>The model is not confident enough to name a problem</h2>
       <p>Its best guess, <strong>${esc(label(best))}</strong>, has only ${pct(p)} confidence (it needs ${pct(bundle.meta.unsure_threshold)}).
@@ -197,6 +252,7 @@ function renderVerdict() {
     <p class="eyebrow">${esc(r?.crop ?? '')}</p>
     <h2>${healthy ? 'Looks healthy' : esc(r?.name ?? label(best))}</h2>
     <p class="confidence"><span class="bar"><i style="width:${(100 * p).toFixed(1)}%"></i></span> ${pct(p)} confidence</p>
+    ${flagged() ? '<p class="banner">Shown on request: this photo was flagged as unlike the training photos, so this answer is unreliable.</p>' : ''}
     ${healthy ? '' : `<p><span class="chip urgency">${esc(r.urgency)} urgency</span> <span class="chip">${esc(r.kind)}</span>${r.pathogen ? ` <em class="muted small">${esc(r.pathogen)}</em>` : ''}</p>`}`;
 }
 
@@ -231,6 +287,10 @@ function renderClassPicker() {
 }
 
 function renderLookFor() {
+  if (isUnsupported()) {
+    $('lookfor').innerHTML = '<li class="lead">The photo was flagged as not a supported crop.</li><li>If the colour sits on something that is not a leaf, the model was looking at the wrong thing.</li>';
+    return;
+  }
   const r = bundle.remedies.classes[bundle.meta.classes[current.ranked[0][0]]];
   $('lookfor').innerHTML = `<li class="lead">Signs of ${esc(label(current.ranked[0][0]))}:</li>`
     + (r?.look_for ?? []).map((s) => `<li>${esc(s)}</li>`).join('');
@@ -244,6 +304,10 @@ function list(title, items) {
 function renderRemedy() {
   const el = $('remedy');
   const r = bundle.remedies.classes[bundle.meta.classes[current.ranked[0][0]]];
+  if (isUnsupported()) {
+    el.innerHTML = '<h2>What to do</h2><p>No advice: this photo does not look like one of the supported crops. If it is one, retake the photo of a single leaf, close up, in daylight.</p>';
+    return;
+  }
   if (isUnsure() || !r) {
     el.innerHTML = '<h2>What to do</h2><p>No advice until the diagnosis is clear. Retake the photo, or compare the leaf with the possible problems above.</p>';
     return;
@@ -340,7 +404,16 @@ function renderHood() {
     </ul>
     <p class="small muted">Unsure below ${pct(m.unsure_threshold)}. Threshold source: ${esc(m.unsure_threshold_source)}.</p>
 
-    <h3>5. About this model</h3>
+    <h3>5. Is this a supported crop?</h3>
+    ${current.ood ? `<p class="small">The ${k} averaged feature values are compared with the average of each of the ${m.classes.length} classes in the training photos
+      (Mahalanobis distance, ${bundle.ood.dims} main directions). Distance to the nearest class (${esc(label(current.ood.nearest))}):
+      <b>${current.ood.score.toFixed(2)}</b>; the warning shows above <b>${bundle.ood.threshold.toFixed(2)}</b>
+      (${esc(bundle.ood.threshold_source)}). ${isUnsupported() ? '<b>Flagged as not a supported crop.</b>' : 'Not flagged.'}</p>
+      <p class="small muted">It catches photos that look nothing like the training leaves (people, objects, scenes). It can miss a leaf of another plant that looks like a supported one,
+      and it also flags most real field photos of supported crops, because those look unlike the lab training photos too. <a href="./explain.html#unsupported">Measured results</a></p>`
+    : '<p class="small muted">This model has no supported-crop check yet.</p>'}
+
+    <h3>6. About this model</h3>
     <p class="small muted">Run ${esc(m.run_name)}, seed ${m.seed}, code ${esc(m.git_commit)}, exported ${esc(m.exported_at)}. File fingerprint ${esc(m.onnx_sha256.slice(0, 16))}…</p>`;
 
   const s = m.image_size;
@@ -365,6 +438,19 @@ $('model').addEventListener('change', (e) => {
   history.replaceState(null, '', url);
   useModel(e.target.value);
 });
+for (const b of document.querySelectorAll('[data-sample]')) {
+  b.addEventListener('click', async () => {
+    try {
+      const r = await fetch(b.dataset.sample);
+      if (!r.ok) throw new Error(`${b.dataset.sample}: ${r.status}`);
+      const blob = await r.blob();
+      analyse(new File([blob], b.dataset.sample.split('/').pop(), { type: blob.type }));
+    } catch (err) {
+      $('status').textContent = `Could not load the sample (${err.message}).`;
+      $('status').classList.add('error');
+    }
+  });
+}
 $('again').addEventListener('click', () => { $('result').hidden = true; $('pick').scrollIntoView({ behavior: 'smooth' }); });
 const drop = document.body;
 drop.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dragging'); });

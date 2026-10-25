@@ -15,11 +15,13 @@ export async function loadBundle(base = `${BASE}models/mnv3_ft_field/`) {
   // The service worker serves these from its own cache after the first visit, so the
   // browser's HTTP cache is skipped (it can refuse a file this large in private windows).
   const get = (name) => fetch(`${base}${name}`, { cache: 'no-store' });
-  const [meta, remedies, classifier, onnx] = await Promise.all([
+  const [meta, remedies, classifier, onnx, ood] = await Promise.all([
     get('model.json').then(okJson),
     get('remedies.json').then(okJson),
     get('classifier.bin').then(okBuffer),
     get('model.onnx').then(okBuffer),
+    // Optional: the "is this a supported crop?" check (scripts/fit_ood.py).
+    get('ood.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
   const [k] = meta.feature_shape;
   const n = meta.classes.length;
@@ -36,6 +38,7 @@ export async function loadBundle(base = `${BASE}models/mnv3_ft_field/`) {
     weight: all.subarray(0, n * k),
     bias: all.subarray(n * k),
     session,
+    ood: ood && decodeOod(ood, k),
     loadMs: performance.now() - t0,
   };
 }
@@ -46,6 +49,19 @@ export async function run(bundle, input) {
   const t0 = performance.now();
   const out = await bundle.session.run({ image: new ort.Tensor('float32', input, [1, 3, s, s]) });
   return { logits: out.logits.data, features: out.features.data, ms: performance.now() - t0 };
+}
+
+function floats(b64) {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  return new Float32Array(bytes.buffer);
+}
+
+/** ood.json -> { ...metadata, proj: Float32Array(K*D), means: Float32Array(C*D) }. */
+function decodeOod(o, k) {
+  const proj = floats(o.proj_b64);
+  const means = floats(o.mean_proj_b64);
+  if (proj.length !== k * o.dims || means.length % o.dims) throw new Error('ood.json does not match model.json');
+  return { ...o, proj, means };
 }
 
 async function okJson(r) {

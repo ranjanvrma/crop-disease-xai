@@ -8,6 +8,12 @@ works without a connection.
 ## What it shows
 
 - **Diagnosis** with confidence, or **"Not sure"** below a threshold tuned on the validation split.
+- **"Not a supported crop?" warning** when the photo is unlike every training leaf: a Mahalanobis
+  distance on the pooled features the model already outputs (`models/<run>/ood.json`, fitted by
+  `scripts/fit_ood.py`, threshold = 99% of PlantVillage validation photos pass). Catches non-plant photos
+  well, misses a fair share of leaves of unknown crops, and flags most field photos; the user can still
+  ask to see the guess. Measured numbers are on the Explainability page.
+- **Supported crops, photo tips and sample photos** (including a non-crop) on the Diagnose page.
 - **Where the model looked:** Grad-CAM++ heatmap over the photo, computed on the device from one
   forward pass (the closed form in `src/cropxai/explain/closed_form.py`, ported to `src/xai.js`).
   "Show evidence for" switches the heatmap to the second or third candidate class.
