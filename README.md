@@ -5,8 +5,9 @@
 **Do compressed crop-disease models still explain themselves faithfully on a phone?**
 
 Crop-leaf disease classification with **Grad-CAM++** explanations, a staged **compression** pipeline
-(structured pruning → INT8 quantization) and **on-device** Android inference,
-with a closed-form, gradient-free Grad-CAM++ that runs in a single forward pass.
+(structured pruning → INT8 quantization), remedies for every class, and an **offline web app** that
+diagnoses and explains on any phone or desktop, using a closed-form, gradient-free Grad-CAM++ that
+runs in a single forward pass.
 
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
@@ -57,7 +58,8 @@ flowchart LR
     C --> E[Compression of MobileNetV3<br/>pruning 50/70% · INT8]
     E --> D
     D --> G[Faithfulness · localisation<br/>stability vs. parent]
-    E --> H[ExecuTorch export<br/>Android app + benchmarks]
+    E --> H[ExecuTorch export<br/>Pixel 6a benchmarks]
+    C --> W[Offline web app<br/>any phone or desktop<br/>heatmap + remedies]
 ```
 
 ### Gradient-free Grad-CAM++ on the device
@@ -104,7 +106,17 @@ with the Android app.
 <!-- table1:start -->
 | Model | Params (M) | Weights (MB) | Top-1 PV test (%) | Macro-F1 PV test (%) | ECE PV test | Field top-1 strict (%) | Field top-1 restricted (%) | Desktop GPU latency (ms) | Desktop CPU latency (ms) |
 |---|---|---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — | — | — |
+| effnet_b0_fe | 4.06 ± 0.00 | 16.22 ± 0.00 | 96.11 ± 0.27 | 95.07 ± 0.36 | 0.035 ± 0.000 | 24.27 ± 0.81 | 26.99 ± 1.07 | 5.61 ± 0.03 | 15.1 ± 1.8 |
+| mnv3_fe | 3.01 ± 0.00 | 12.03 ± 0.00 | 96.66 ± 0.07 | 95.87 ± 0.12 | 0.052 ± 0.001 | 21.77 ± 0.14 | 24.56 ± 0.20 | 4.44 ± 0.06 | 9.4 ± 0.6 |
+| mnv3_fe_int8 | 3.01 ± 0.00 | 3.01 ± 0.00 | 94.12 ± 0.04 | 92.82 ± 0.11 | 0.074 ± 0.000 | 21.28 ± 0.30 | 23.67 ± 0.41 | — | — |
+| mnv3_fe_p50 | 0.79 ± 0.00 | 3.17 ± 0.00 | 69.25 ± 0.34 | 53.83 ± 0.28 | 0.056 ± 0.002 | 6.42 ± 0.26 | 8.55 ± 0.46 | 4.55 ± 0.08 | 6.9 ± 0.9 |
+| mnv3_fe_p50_ft8 | 0.79 ± 0.00 | 3.17 ± 0.00 | 88.87 ± 0.45 | 84.44 ± 0.43 | 0.013 ± 0.001 | 9.90 ± 0.34 | 13.16 ± 0.22 | 7.52 ± 4.81 | 10.6 ± 1.4 |
+| mnv3_fe_p50_int8 | 0.79 ± 0.00 | 0.79 ± 0.00 | 61.05 ± 2.05 | 44.53 ± 2.08 | 0.059 ± 0.032 | 6.05 ± 0.61 | 9.01 ± 0.42 | — | — |
+| mnv3_fe_p70 | 0.30 ± 0.00 | 1.21 ± 0.00 | 51.62 ± 0.63 | 29.80 ± 0.49 | 0.085 ± 0.001 | 4.06 ± 0.75 | 6.16 ± 0.13 | 4.52 ± 0.11 | 5.2 ± 0.2 |
+| mnv3_fe_p70_ft8 | 0.30 ± 0.00 | 1.21 ± 0.00 | 77.82 ± 0.51 | 66.47 ± 1.32 | 0.044 ± 0.002 | 5.74 ± 0.25 | 7.77 ± 0.08 | 4.65 ± 0.36 | 8.1 ± 2.4 |
+| mnv3_fe_p70_int8 | 0.30 ± 0.00 | 0.30 ± 0.00 | 46.54 ± 0.14 | 26.37 ± 0.27 | 0.158 ± 0.027 | 3.13 ± 0.17 | 5.00 ± 0.60 | — | — |
+| mnv3_ft_field | 3.01 ± 0.00 | 12.03 ± 0.00 | 99.44 ± 0.03 | 99.16 ± 0.05 | 0.105 ± 0.003 | 23.43 ± 0.56 | 27.44 ± 0.00 | 4.44 ± 0.11 | 12.4 ± 3.2 |
+| scratch_cnn | 1.18 (n=1) | 4.73 (n=1) | 99.76 (n=1) | 99.66 (n=1) | 0.003 (n=1) | 15.42 (n=1) | 17.41 (n=1) | 0.80 (n=1) | 12.1 (n=1) |
 <!-- table1:end -->
 
 ### Table 2 — Explanation quality
@@ -114,7 +126,25 @@ model). Pointing game and IoU need lesion masks, which exist only for the projec
 <!-- table2:start -->
 | Model | Method | Del. AUC ↓ (test) | Ins. AUC ↑ (test) | Avg. Drop % ↓ (test) | Inc. Conf. % ↑ (test) | ROAD ↑ (test) | Del. AUC ↓ (field) | Ins. AUC ↑ (field) | Pointing ↑ (field) | IoU ↑ (field) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — | — | — | — |
+| effnet_b0_fe | Grad-CAM++ | 0.533 ± 0.005 | 0.713 ± 0.008 | 43.0 ± 1.3 | 11.7 ± 0.9 | 0.108 ± 0.004 | 0.242 ± 0.013 | 0.418 ± 0.007 | — | — |
+| effnet_b0_fe | Grad-CAM | 0.479 ± 0.005 | 0.749 ± 0.007 | 26.9 ± 1.2 | 24.9 ± 1.2 | 0.151 ± 0.004 | 0.176 ± 0.005 | 0.494 ± 0.018 | — | — |
+| effnet_b0_fe | Score-CAM | 0.544 ± 0.015 | 0.704 ± 0.016 | 57.8 ± 4.2 | 5.3 ± 2.3 | 0.114 ± 0.012 | 0.207 ± 0.005 | 0.455 ± 0.012 | — | — |
+| mnv3_fe | Grad-CAM++ | 0.476 ± 0.002 | 0.733 ± 0.002 | 37.0 ± 0.2 | 12.8 ± 0.2 | 0.117 ± 0.001 | 0.226 ± 0.001 | 0.474 ± 0.001 | — | — |
+| mnv3_fe | Grad-CAM | 0.431 ± 0.001 | 0.754 ± 0.003 | 36.9 ± 0.2 | 21.3 ± 0.6 | 0.144 ± 0.003 | 0.183 ± 0.002 | 0.534 ± 0.003 | — | — |
+| mnv3_fe | Score-CAM | 0.496 ± 0.005 | 0.686 ± 0.003 | 48.8 ± 0.1 | 12.0 ± 0.0 | 0.085 ± 0.002 | 0.217 ± 0.002 | 0.498 ± 0.006 | — | — |
+| mnv3_fe_int8 | Grad-CAM++ (closed form) | 0.376 ± 0.001 | 0.629 ± 0.002 | 55.0 ± 0.2 | 10.6 ± 0.5 | 0.111 ± 0.002 | 0.233 ± 0.003 | 0.468 ± 0.005 | — | — |
+| mnv3_fe_p50 | Grad-CAM++ | 0.131 ± 0.005 | 0.261 ± 0.008 | 85.8 ± 2.1 | 5.2 ± 1.2 | 0.095 ± 0.004 | 0.115 ± 0.005 | 0.252 ± 0.012 | — | — |
+| mnv3_fe_p50_ft8 | Grad-CAM++ | 0.203 ± 0.007 | 0.421 ± 0.017 | 84.4 ± 2.9 | 2.7 ± 0.9 | 0.144 ± 0.003 | 0.162 ± 0.014 | 0.379 ± 0.012 | — | — |
+| mnv3_fe_p50_int8 | Grad-CAM++ (closed form) | 0.115 ± 0.004 | 0.276 ± 0.002 | 84.8 ± 1.4 | 7.6 ± 1.6 | 0.105 ± 0.004 | 0.106 ± 0.014 | 0.297 ± 0.023 | — | — |
+| mnv3_fe_p70 | Grad-CAM++ | 0.104 ± 0.003 | 0.304 ± 0.005 | 94.0 ± 2.1 | 1.4 ± 0.2 | 0.084 ± 0.003 | 0.082 ± 0.011 | 0.243 ± 0.033 | — | — |
+| mnv3_fe_p70_ft8 | Grad-CAM++ | 0.130 ± 0.008 | 0.470 ± 0.006 | 90.7 ± 4.0 | 3.0 ± 0.7 | 0.119 ± 0.007 | 0.131 ± 0.013 | 0.321 ± 0.048 | — | — |
+| mnv3_fe_p70_int8 | Grad-CAM++ (closed form) | 0.106 ± 0.035 | 0.228 ± 0.010 | 84.7 ± 1.6 | 6.0 ± 2.2 | 0.063 ± 0.011 | 0.083 ± 0.010 | 0.222 ± 0.044 | — | — |
+| mnv3_ft_field | Grad-CAM++ | 0.345 ± 0.012 | 0.818 ± 0.005 | 29.3 ± 1.4 | 16.6 ± 2.6 | 0.201 ± 0.002 | 0.127 ± 0.007 | 0.423 ± 0.007 | — | — |
+| mnv3_ft_field | Grad-CAM | 0.341 ± 0.012 | 0.824 ± 0.006 | 29.4 ± 2.0 | 16.4 ± 2.8 | 0.212 ± 0.001 | 0.107 ± 0.006 | 0.486 ± 0.012 | — | — |
+| mnv3_ft_field | Score-CAM | 0.370 ± 0.009 | 0.817 ± 0.012 | 48.5 ± 0.8 | 8.7 ± 1.2 | 0.195 ± 0.010 | 0.149 ± 0.014 | 0.439 ± 0.005 | — | — |
+| scratch_cnn | Grad-CAM++ | 0.289 (n=1) | 0.909 (n=1) | 34.8 (n=1) | 4.7 (n=1) | 0.238 (n=1) | 0.191 (n=1) | 0.631 (n=1) | — | — |
+| scratch_cnn | Grad-CAM | 0.280 (n=1) | 0.910 (n=1) | 43.9 (n=1) | 4.7 (n=1) | 0.229 (n=1) | 0.177 (n=1) | 0.643 (n=1) | — | — |
+| scratch_cnn | Score-CAM | 0.289 (n=1) | 0.896 (n=1) | 29.0 (n=1) | 2.0 (n=1) | 0.189 (n=1) | 0.230 (n=1) | 0.591 (n=1) | — | — |
 <!-- table2:end -->
 
 ### Table 3 — Stability under compression (vs. uncompressed parent)
@@ -124,7 +154,13 @@ the class the parent predicts, on the same images.
 <!-- table3:start -->
 | Variant | Spearman ↑ (test) | SSIM ↑ (test) | Top-10% IoU ↑ (test) | Spearman ↑ (field) | SSIM ↑ (field) | Top-10% IoU ↑ (field) |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — |
+| mnv3_fe_int8 | 0.919 ± 0.000 | 0.903 ± 0.000 | 0.638 ± 0.001 | 0.927 ± 0.001 | 0.899 ± 0.001 | 0.672 ± 0.003 |
+| mnv3_fe_p50 | 0.368 ± 0.005 | 0.529 ± 0.003 | 0.125 ± 0.003 | 0.137 ± 0.007 | 0.471 ± 0.006 | 0.111 ± 0.007 |
+| mnv3_fe_p50_ft8 | 0.462 ± 0.009 | 0.544 ± 0.006 | 0.151 ± 0.005 | 0.308 ± 0.007 | 0.524 ± 0.002 | 0.154 ± 0.002 |
+| mnv3_fe_p50_int8 | 0.370 ± 0.012 | 0.530 ± 0.007 | 0.129 ± 0.005 | 0.251 ± 0.016 | 0.502 ± 0.005 | 0.131 ± 0.004 |
+| mnv3_fe_p70 | 0.240 ± 0.008 | 0.436 ± 0.004 | 0.109 ± 0.002 | 0.002 ± 0.017 | 0.410 ± 0.006 | 0.062 ± 0.003 |
+| mnv3_fe_p70_ft8 | 0.398 ± 0.015 | 0.477 ± 0.005 | 0.152 ± 0.005 | 0.133 ± 0.002 | 0.463 ± 0.005 | 0.114 ± 0.003 |
+| mnv3_fe_p70_int8 | 0.209 ± 0.014 | 0.407 ± 0.009 | 0.103 ± 0.003 | -0.021 ± 0.009 | 0.395 ± 0.008 | 0.057 ± 0.005 |
 <!-- table3:end -->
 
 ### Table 4 — On-device (Pixel 6a)
@@ -148,6 +184,15 @@ The unit tests use small synthetic images, so they run without the datasets.
 Download PlantVillage (colour) and PlantDoc and lay them out as described in
 [`data/README.md`](data/README.md). The train / val / test / field-test split is already pinned in
 [`splits/`](splits/), so everyone uses the same split.
+
+### Offline web app
+[`web/`](web/) is an installable app (PWA) for any phone or desktop browser: photo → diagnosis or
+"not sure" → Grad-CAM++ heatmap computed on the device → a live check that the heatmap is faithful →
+an exact breakdown of the class score → remedies. See [`web/README.md`](web/README.md).
+```bash
+python scripts/export_web.py --config configs/experiment/mnv3_fe.yaml --seed 0   # model bundle (CPU)
+cd web && npm ci && npm run dev
+```
 
 ### Train and evaluate
 Training runs on **Google Colab**: open [`notebooks/colab_bootstrap.ipynb`](notebooks/colab_bootstrap.ipynb)
@@ -177,7 +222,9 @@ python scripts/make_tables.py
 ```
 configs/      base, data, model, train, explain and per-experiment YAMLs
 src/cropxai/  data · models · train · explain · eval · compress · export · utils
-scripts/      command-line entry points
+scripts/      command-line entry points (incl. export_web.py)
+knowledge/    remedies for every class
+web/          offline web app (PWA) for phones and desktop
 splits/       pinned split manifest (paths, labels, image hashes)
 notebooks/    Colab runner (generated by build_colab_notebook.py)
 results/      metrics JSON (source of truth for all tables) and figures
@@ -187,7 +234,7 @@ tests/        unit + end-to-end tests on synthetic data
 
 ## Project status & plan
 
-*Last updated: 18 October 2026.*
+*Last updated: 20 October 2026.*
 
 | Phase | What | Status |
 |---|---|---|
@@ -197,9 +244,11 @@ tests/        unit + end-to-end tests on synthetic data
 | — | Baseline experiments | ✅ Done (results on Drive, to be committed) |
 | 4 | Compression of MobileNetV3: structured pruning + INT8 | 🟡 Code done and tested; runs pending (~1–1.5 GPU-hours) |
 | 5 | Core experiment: explanations under compression | 🟡 Metrics implemented (Table 2 + Table 3); computed together with Phase 4 |
-| 6 | On-device closed-form Grad-CAM++ | 🟡 Method verified, and already used for the INT8 models; app export pending |
-| 7 | ExecuTorch export, Android app, Pixel 6a benchmarks | ⬜ Not started |
-| 8 | Paper and release (dashboard as a stretch goal) | ⬜ Not started |
+| 6 | On-device closed-form Grad-CAM++ | ✅ Runs in the web app, tested equal to the Python version |
+| — | Offline web app (all phones + desktop) and remedies for all 38 classes | ✅ Built and tested with a demo model; real model export and expert review of remedies pending |
+| — | Field-robust model (`mnv3_ft_field`) | 🟡 Config ready; not run (~1.5 GPU-hours, estimated) |
+| 7 | ExecuTorch export and Pixel 6a benchmarks (research) | ⬜ Not started |
+| 8 | Paper and release (weights, deployed app, demo video) | ⬜ Not started |
 
 ### Scope: a compute-lean study
 
@@ -271,23 +320,28 @@ GPU; if Colab falls back to the CPU (the log says so), INT8 evaluation is slower
 - [ ] Which stage changes the explanations most: pruning, quantization, or both?
 - [ ] Does compression make lab → field shortcut learning better or worse?
 
-**Phase 6–7: On-device**
+**App**
+- [x] Offline web app: camera or file → label + confidence → heatmap overlay → "unsure" state below a confidence threshold tuned on validation data
+- [x] App preprocessing, model outputs and heatmap tested equal to the Python pipeline
+- [x] Remedies for all 38 classes (awaiting expert review)
+- [ ] Export the real model and deploy; check by hand on an iPhone and a low-end Android phone
+- [ ] Run `mnv3_ft_field` to narrow the lab → field gap
+
+**Phase 6–7: On-device benchmarks**
 - [ ] ExecuTorch export (XNNPACK backend) of the chosen variant in its own environment
-- [ ] Kotlin + CameraX app: camera → label + confidence → heatmap overlay → "unsure" state below a confidence threshold tuned on validation data
-- [ ] Check that the app's closed-form heatmap matches the desktop result
 - [ ] Pixel 6a benchmarks: size, cold start, latency median/p95, heatmap latency, peak memory (Table 4)
 
 **Phase 8: Release**
 - [ ] Commit the results from Drive into `results/metrics/` (fills Tables 1–3 automatically)
 - [ ] Paper (intro, related work, method, setup, results, on-device, limitations) with tables generated from the results
-- [ ] Trained weights and lesion annotations published; demo video; Android APK
-- [ ] *Stretch:* web results dashboard that reads `results/`
+- [ ] Trained weights and lesion annotations published; demo video; deployed web app
 
 ### 📋 Needs to be done by hand
 - [ ] Collect 150–300 own field leaf photos (classes PlantVillage covers), labels confirmed by a plant expert
 - [ ] Draw lesion masks on 150–300 field images (CVAT or Label Studio); without them, pointing game and IoU stay empty
 - [ ] Re-run the literature search before writing up (`research/notes/gap.md`): the research gap must be re-checked, not assumed
 - [ ] Add a license to the repository
+- [ ] Plant pathologist review of `knowledge/remedies.yaml`
 
 ### Known limitations
 - Compression is studied on one architecture (MobileNetV3) whose backbone was trained with feature extraction; other architectures and fully fine-tuned parents are future work.

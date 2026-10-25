@@ -1,0 +1,21 @@
+# Render Blueprint for the demo website (a static site: the model runs in the
+# visitor's browser, so there is no server). The model bundles and results data
+# are committed under web/public/, so Render only needs Node to build.
+# To refresh them: scripts/export_web.py (per model), then scripts/export_site_data.py.
+services:
+  - type: web
+    name: cropxai
+    runtime: static
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+    routes:
+      # Render does not serve index.html for "/" on this site, so map it explicitly
+      # (the service worker also precaches "./").
+      - type: rewrite
+        source: /
+        destination: /index.html

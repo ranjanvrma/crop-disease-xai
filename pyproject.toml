@@ -36,6 +36,11 @@ compress = [
     "torchao>=0.10",
 ]
 dev = ["pytest>=8"]
+# Web-app export (scripts/export_web.py): ONNX graph + ONNX Runtime for the parity tests.
+web = [
+    "onnx>=1.16",
+    "onnxruntime>=1.18",
+]
 # The ExecuTorch export environment is deliberately NOT an extra here:
 # it must live in its own environment. See requirements/export.txt.
 

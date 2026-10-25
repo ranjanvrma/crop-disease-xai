@@ -40,3 +40,13 @@ Thumbs.db
 *.crdownload
 *.tar
 *.tar.gz
+
+# Web app: generated model bundle and test outputs
+web/public/model/
+web/test/fixtures/
+web/test-results/
+web/playwright-report/
+
+# Demo site: the exported model bundles are committed so a static host (Render)
+# can build the site without the checkpoints
+!web/public/models/**/*.onnx

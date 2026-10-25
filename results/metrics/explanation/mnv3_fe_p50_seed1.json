@@ -1,0 +1,153 @@
+{
+  "run_name": "mnv3_fe_p50",
+  "seed": 1,
+  "kind": "explanation",
+  "metrics": {
+    "test": {
+      "sample_accuracy": 0.6833333373069763,
+      "n_masks": 0,
+      "gradcampp": {
+        "deletion_auc": 0.12575093145792682,
+        "insertion_auc": 0.25386806967668235,
+        "average_drop": 87.83836364746094,
+        "increase_in_confidence": 3.999999910593033,
+        "road": 0.09069866388788796,
+        "road_n_images": 100,
+        "n_images": 300
+      },
+      "stability": {
+        "spearman": 0.3707675266312679,
+        "ssim": 0.526998174538215,
+        "top10_iou": 0.12399470737470394,
+        "n_images": 300
+      }
+    },
+    "field_test": {
+      "sample_accuracy": 0.05999999865889549,
+      "n_masks": 0,
+      "gradcampp": {
+        "deletion_auc": 0.11103862148709595,
+        "insertion_auc": 0.23892042852317294,
+        "average_drop": 85.30020117759705,
+        "increase_in_confidence": 9.333333373069763,
+        "road": 0.0674621602660045,
+        "road_n_images": 100,
+        "n_images": 300
+      },
+      "stability": {
+        "spearman": 0.1434365427544542,
+        "ssim": 0.4778033239146074,
+        "top10_iou": 0.11660758383126826,
+        "n_images": 300
+      }
+    }
+  },
+  "created_utc": "2026-10-20T13:11:57+00:00",
+  "git_commit": "4ac2d54",
+  "env": {
+    "python": "3.14.2",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0"
+  },
+  "config": {
+    "project": "crop-disease-xai",
+    "run_name": "mnv3_fe_p50",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "seed": 1,
+    "deterministic": true,
+    "paths": {
+      "data_root": "data",
+      "checkpoints_dir": "checkpoints",
+      "splits_dir": "splits",
+      "results_dir": "results"
+    },
+    "wandb": {
+      "mode": "disabled",
+      "entity": null
+    },
+    "image_size": 224,
+    "num_workers": 2,
+    "batch_size": 64,
+    "data": {
+      "plantvillage_dir": "plantvillage/color",
+      "plantdoc_dirs": [
+        "plantdoc/train",
+        "plantdoc/test"
+      ],
+      "field_dir": "field",
+      "class_map": "configs/data/plantdoc_to_plantvillage.yaml",
+      "manifest": "splits/manifest_v1.csv",
+      "classes_file": "splits/classes_v1.json",
+      "split": {
+        "val": 0.1,
+        "test": 0.1,
+        "seed": 0
+      },
+      "dedup": {
+        "cross_hamming": 4
+      }
+    },
+    "augment": {
+      "crop_scale": [
+        0.7,
+        1.0
+      ],
+      "vflip_p": 0.5,
+      "jitter": 0.2,
+      "jitter_p": 0.5
+    },
+    "explain": {
+      "splits": [
+        "test",
+        "field_test"
+      ],
+      "n_images": 300,
+      "sample_seed": 0,
+      "methods": [
+        "gradcampp"
+      ],
+      "scorecam_n_images": 50,
+      "batch_size": 32,
+      "scorecam_batch_size": 128,
+      "deletion": {
+        "n_steps": 20,
+        "blur_kernel": 21,
+        "blur_sigma": 5.0
+      },
+      "road_percentiles": [
+        20,
+        40,
+        60,
+        80
+      ],
+      "road_n_images": 100,
+      "iou_threshold": 0.5,
+      "n_figure_examples": 8,
+      "verify_n_images": 64
+    },
+    "model": {
+      "arch": "mobilenetv3_large_100",
+      "pretrained": true,
+      "drop_rate": 0.2
+    },
+    "train": {
+      "mode": "finetune",
+      "epochs": 2,
+      "lr": 0.0001,
+      "backbone_lr_mult": 1.0,
+      "weight_decay": 0.0,
+      "warmup_epochs": 0,
+      "label_smoothing": 0.0,
+      "amp": true
+    },
+    "compress": {
+      "parent": "mnv3_fe",
+      "prune_ratio": 0.5,
+      "int8": false
+    }
+  }
+}

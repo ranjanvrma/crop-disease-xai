@@ -1,0 +1,65 @@
+{
+ "default": "mnv3_ft_field",
+ "models": [
+  {
+   "id": "mnv3_ft_field",
+   "label": "mnv3_ft_field",
+   "note": "MobileNetV3, fully fine-tuned with field-style augmentation (default)",
+   "arch": "mobilenetv3_large_100",
+   "seed": 0,
+   "size_mb": 12.0,
+   "measured_accuracy": {
+    "test_top1": 0.9942888617515564,
+    "field_strict_top1": 0.228390172123909,
+    "field_n": 2522,
+    "source": "results\\metrics\\accuracy\\mnv3_ft_field_seed0.json"
+   },
+   "demo": false
+  },
+  {
+   "id": "mnv3_fe",
+   "label": "mnv3_fe",
+   "note": "MobileNetV3, frozen backbone (baseline, parent of the compressed models)",
+   "arch": "mobilenetv3_large_100",
+   "seed": 0,
+   "size_mb": 12.0,
+   "measured_accuracy": {
+    "test_top1": 0.9664701819419861,
+    "field_strict_top1": 0.21927042305469513,
+    "field_n": 2522,
+    "source": "results\\metrics\\accuracy\\mnv3_fe_seed0.json"
+   },
+   "demo": false
+  },
+  {
+   "id": "effnet_b0_fe",
+   "label": "effnet_b0_fe",
+   "note": "EfficientNet-B0, frozen backbone (best field accuracy)",
+   "arch": "efficientnet_b0",
+   "seed": 0,
+   "size_mb": 16.2,
+   "measured_accuracy": {
+    "test_top1": 0.957995593547821,
+    "field_strict_top1": 0.2509912848472595,
+    "field_n": 2522,
+    "source": "results\\metrics\\accuracy\\effnet_b0_fe_seed0.json"
+   },
+   "demo": false
+  },
+  {
+   "id": "mnv3_fe_p50_ft8",
+   "label": "mnv3_fe_p50_ft8",
+   "note": "MobileNetV3 pruned 50%, fine-tuned 8 epochs (4x smaller)",
+   "arch": "mobilenetv3_large_100",
+   "seed": 0,
+   "size_mb": 3.2,
+   "measured_accuracy": {
+    "test_top1": 0.8837509155273438,
+    "field_strict_top1": 0.09595558792352676,
+    "field_n": 2522,
+    "source": "results\\metrics\\accuracy\\mnv3_fe_p50_ft8_seed0.json"
+   },
+   "demo": false
+  }
+ ]
+}

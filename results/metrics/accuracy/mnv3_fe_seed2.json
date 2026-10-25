@@ -1,0 +1,149 @@
+{
+  "run_name": "mnv3_fe",
+  "seed": 2,
+  "kind": "accuracy",
+  "metrics": {
+    "arch": "mobilenetv3_large_100",
+    "train_mode": "feature_extract",
+    "int8": false,
+    "quantizer": null,
+    "params": 3008470,
+    "size_mb_fp32": 12.237523,
+    "best_epoch": 5,
+    "val_macro_f1": 0.9615756723999899,
+    "test": {
+      "top1": 0.967391312122345,
+      "macro_f1": 0.9597453303257666,
+      "nll": 0.14018741250038147,
+      "ece": 0.05251872166991234,
+      "n": 5428
+    },
+    "field": {
+      "strict_top1": 0.2164948433637619,
+      "strict_macro_f1": 0.19241998317711664,
+      "strict_nll": 4.485920429229736,
+      "strict_ece": 0.3746472895145416,
+      "strict_n": 2522,
+      "restricted_top1": 0.24742268025875092,
+      "restricted_macro_f1": 0.19897886081133573,
+      "n_field_classes": 28
+    },
+    "latency_desktop_gpu": {
+      "median_ms": 4.449600004591048,
+      "p95_ms": 4.782574970158748,
+      "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+      "threads": 24
+    },
+    "latency_desktop_cpu": {
+      "median_ms": 9.177550004096702,
+      "p95_ms": 14.96099003998097,
+      "device": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+      "threads": 24
+    }
+  },
+  "created_utc": "2026-10-20T09:45:12+00:00",
+  "git_commit": "4ac2d54",
+  "env": {
+    "python": "3.14.2",
+    "torch": "2.14.1+cu130",
+    "cuda": "13.0"
+  },
+  "config": {
+    "project": "crop-disease-xai",
+    "run_name": "mnv3_fe",
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "seed": 2,
+    "deterministic": true,
+    "paths": {
+      "data_root": "data",
+      "checkpoints_dir": "checkpoints",
+      "splits_dir": "splits",
+      "results_dir": "results"
+    },
+    "wandb": {
+      "mode": "disabled",
+      "entity": null
+    },
+    "image_size": 224,
+    "num_workers": 2,
+    "batch_size": 64,
+    "data": {
+      "plantvillage_dir": "plantvillage/color",
+      "plantdoc_dirs": [
+        "plantdoc/train",
+        "plantdoc/test"
+      ],
+      "field_dir": "field",
+      "class_map": "configs/data/plantdoc_to_plantvillage.yaml",
+      "manifest": "splits/manifest_v1.csv",
+      "classes_file": "splits/classes_v1.json",
+      "split": {
+        "val": 0.1,
+        "test": 0.1,
+        "seed": 0
+      },
+      "dedup": {
+        "cross_hamming": 4
+      }
+    },
+    "augment": {
+      "crop_scale": [
+        0.7,
+        1.0
+      ],
+      "vflip_p": 0.5,
+      "jitter": 0.2,
+      "jitter_p": 0.5
+    },
+    "explain": {
+      "splits": [
+        "test",
+        "field_test"
+      ],
+      "n_images": 300,
+      "sample_seed": 0,
+      "methods": [
+        "gradcampp",
+        "gradcam",
+        "scorecam"
+      ],
+      "scorecam_n_images": 50,
+      "batch_size": 32,
+      "scorecam_batch_size": 128,
+      "deletion": {
+        "n_steps": 20,
+        "blur_kernel": 21,
+        "blur_sigma": 5.0
+      },
+      "road_percentiles": [
+        20,
+        40,
+        60,
+        80
+      ],
+      "road_n_images": 100,
+      "iou_threshold": 0.5,
+      "n_figure_examples": 8,
+      "verify_n_images": 64
+    },
+    "model": {
+      "arch": "mobilenetv3_large_100",
+      "pretrained": true,
+      "drop_rate": 0.2
+    },
+    "train": {
+      "mode": "feature_extract",
+      "epochs": 6,
+      "lr": 0.001,
+      "backbone_lr_mult": 0.0,
+      "weight_decay": 0.0,
+      "warmup_epochs": 1,
+      "label_smoothing": 0.0,
+      "amp": true
+    }
+  }
+}

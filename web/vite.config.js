@@ -1,0 +1,53 @@
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
+import { defineConfig } from 'vite';
+
+// Lists every built file so the service worker (public/sw.js) can cache the
+// whole app, default model included, on first visit. The other models in the
+// picker are cached the first time they are chosen instead, so a phone does not
+// download all of them up front. The hash names the cache, so a new build
+// replaces the old copy.
+function precacheManifest() {
+  let outDir;
+  return {
+    name: 'precache-manifest',
+    configResolved(config) { outDir = config.build.outDir; },
+    closeBundle() {
+      const files = [];
+      const walk = (dir) => {
+        for (const name of readdirSync(dir)) {
+          const path = join(dir, name);
+          if (statSync(path).isDirectory()) walk(path);
+          else if (!['sw.js', 'precache.json'].includes(name) && !name.endsWith('.map')) files.push(path);
+        }
+      };
+      walk(outDir);
+      const { default: def } = JSON.parse(readFileSync(join(outDir, 'models', 'index.json'), 'utf8'));
+      const precached = files.filter((f) => {
+        const parts = relative(outDir, f).split(/[\\/]/);
+        return parts[0] !== 'models' || parts.length === 2 || parts[1] === def;
+      });
+      const hash = createHash('sha256');
+      for (const f of files.sort()) hash.update(relative(outDir, f)).update(readFileSync(f));
+      const version = hash.digest('hex').slice(0, 12);
+      const urls = precached.map((f) => relative(outDir, f).split('\\').join('/'));
+      writeFileSync(join(outDir, 'precache.json'), JSON.stringify({ version, urls: ['./', ...urls] }));
+      const sw = join(outDir, 'sw.js');
+      writeFileSync(sw, readFileSync(sw, 'utf8').replace('__PRECACHE_VERSION__', version));
+    },
+  };
+}
+
+export default defineConfig({
+  base: './', // works from any sub-path, e.g. GitHub Pages
+  build: {
+    target: 'es2020',
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      input: Object.fromEntries(['index', 'explain', 'results', 'about'].map((p) => [p, resolve(import.meta.dirname, `${p}.html`)])),
+    },
+  },
+  optimizeDeps: { exclude: ['onnxruntime-web'] },
+  plugins: [precacheManifest()],
+});
