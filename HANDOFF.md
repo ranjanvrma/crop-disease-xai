@@ -5,7 +5,7 @@
 > non-obvious decision made so far. If you use an AI assistant, start it with the prompt in
 > [§13](#13-starter-prompt-for-an-ai-assistant).
 >
-> *State as of 20 October 2026 (web app, remedies and field-robust experiment added on top of commit `4ac2d54`).*
+> *State as of 25 October 2026: all branches merged into `main`; live demo at https://crop-disease-xai.onrender.com/.*
 
 ---
 
@@ -64,22 +64,26 @@ The original project brief (a PDF, not in the repo) asked for exactly this.
 | 1 | Data pipeline, dedup, pinned split, field-leak guard | ✅ done |
 | 2 | Models, training (with resume), evaluation | ✅ done |
 | 3 | Grad-CAM++/Grad-CAM/Score-CAM + faithfulness/localisation metrics, closed-form Grad-CAM++ | ✅ done |
-| — | Baseline runs: `mnv3_fe` (3 seeds), `effnet_b0_fe` (3 seeds), `scratch_cnn` (1 seed) | ✅ done, **results live on the owner's Google Drive, not yet in the repo** |
-| 4 | Compression: pruning 50/70% + INT8, alone and stacked (5 variants × 3 seeds) | 🟡 **code done and tested locally; never run on real data yet** |
-| 5 | Core experiment: explanation quality + stability under compression, centrepiece figure | 🟡 metrics done (computed during Phase 4); figure not written |
+| — | Baselines: `mnv3_fe` (3 seeds), `effnet_b0_fe` (3 seeds), `scratch_cnn` (1 run) | ✅ done, results in `results/metrics/` |
+| 4 | Compression: pruning 50/70% (2- and 8-epoch fine-tune), INT8, and both stacked: 7 variants × 3 seeds | ✅ done, results in `results/metrics/` |
+| 5 | Core experiment: explanation quality + stability under compression | 🟡 metrics done (README Tables 2–3); centrepiece figure and write-up not done |
+| — | Field-robust model `mnv3_ft_field` (full fine-tune + field-style augmentation), 3 seeds | ✅ done |
 | 6 | On-device closed-form Grad-CAM++ | ✅ in the web app (`web/src/xai.js`), tested equal to the Python closed form |
-| — | **Offline web app (PWA)** for all phones + desktop: diagnosis, heatmap, contrastive heatmaps, live deletion check, score decomposition, remedies | ✅ built and tested with a demo model; **needs the real model exported** (`scripts/export_web.py`, CPU) |
+| — | **Offline web app + demo site** with 4 real models (`mnv3_fe`, `effnet_b0_fe`, `mnv3_fe_p50_ft8`, `mnv3_ft_field`), "not a supported crop" warning, remedies | ✅ **live at https://crop-disease-xai.onrender.com/** (Render, `render.yaml`) |
 | — | Remedies knowledge base, all 38 classes (`knowledge/remedies.yaml`) | ✅ written; **not yet reviewed by a plant pathologist** |
-| — | Field-robust model `mnv3_ft_field` (full fine-tune + field-style augmentation) | 🟡 config + code done; not run (~1.5 GPU-hours, estimated) |
+| — | Name check (no AI-assistant attribution) as git hooks + GitHub Action | ✅ enable hooks per clone: `git config core.hooksPath .githooks` |
 | 7 | ExecuTorch export + Pixel 6a benchmarks (research Table 4 only) | ⬜ not started |
-| 8 | Paper, release (weights, annotations, demo video, deployed web app) | ⬜ not started |
+| 8 | Paper, release (weights, lesion annotations, demo video) | ⬜ not started |
 
-**The very next action:** one Colab *Run all* of the queue (Phase 4, ~1–1.5 GPU-hours, estimated),
-then commit the results. The owner's free Colab GPU quota was exhausted when this was written.
+**The very next action:** Phase 5 write-up (centrepiece figure from `results/metrics/`), then Phase 7
+benchmarks on the Pixel 6a. No GPU training is needed for either.
 
-Tests: `45 passed` (Linux, CPU torch 2.14, Python 3.13), plus `cd web && npm test` (4 parity tests)
-and `npm run test:e2e` (10 browser tests: 4 phone/tablet sizes + desktop, and offline mode). CI runs
-all of them on every pull request (`.github/workflows/ci.yml`).
+Tests: `45 passed` on Linux (CPU torch 2.14, Python 3.13, with the `web` extra) / `42 passed, 1
+skipped` on Windows without `onnxruntime`; plus `cd web && npm test` (parity) and `npm run test:e2e`
+(browser tests). CI (`.github/workflows/ci.yml`) runs them on pull requests and pushes to `main`;
+`.github/workflows/name-check.yml` runs on every push.
+
+All work is on `main`; the earlier branches (`local-gpu-run`, `web-app`, `demo-site`) were merged.
 
 ---
 
@@ -334,77 +338,73 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
 
 ## 9. Results so far
 
-> These come from the owner's Colab runs and live on the owner's Drive. **They are not yet committed**,
-> so the README tables are still empty. Copy the JSONs into `results/metrics/` and run
-> `make_tables.py` before quoting any of them. Mean ± std over 3 seeds.
+> From `results/metrics/**.json` (README Tables 1–3, regenerated with `scripts/make_tables.py`).
+> All produced on an RTX 5070 Ti laptop GPU (float runs torch 2.14, INT8 runs torch 2.10; recorded
+> per result). Mean ± std over 3 seeds unless noted.
 
-| Model | PlantVillage test top-1 | Field strict | Field restricted | ECE | Params | GPU latency (T4) |
-|---|---|---|---|---|---|---|
-| `mnv3_fe` | 96.60 ± 0.09% | 22.07 ± 0.28% | 24.80 ± 0.31% | 0.051 | 3.01 M | 7.2 ms |
-| `effnet_b0_fe` | 96.24 ± 0.14% | 24.57 ± 0.64% | 27.25 ± 0.77% | 0.035 | 4.06 M | 8.9 ms |
-| `scratch_cnn` (n = 1) | val 99.8% (test/field in its JSON) | — | — | — | — | — |
+| Model | PV test top-1 | Field strict | Field restricted | Weights |
+|---|---|---|---|---|
+| `mnv3_fe` (parent) | 96.66 ± 0.07% | 21.77 ± 0.14% | 24.56 ± 0.20% | 12.0 MB |
+| `effnet_b0_fe` | 96.11 ± 0.27% | 24.27 ± 0.81% | 26.99 ± 1.07% | 16.2 MB |
+| `scratch_cnn` (n = 1) | 99.76% | 15.42% | 17.41% | 4.7 MB |
+| `mnv3_ft_field` | 99.44 ± 0.03% | 23.43 ± 0.56% | 27.44 ± 0.00% | 12.0 MB |
+| `mnv3_fe_int8` | 94.12 ± 0.04% | 21.28 ± 0.30% | 23.67 ± 0.41% | 3.0 MB |
+| `mnv3_fe_p50` / `_p50_ft8` | 69.25% / 88.87% | 6.42% / 9.90% | 8.55% / 13.16% | 3.2 MB |
+| `mnv3_fe_p70` / `_p70_ft8` | 51.62% / 77.82% | 4.06% / 5.74% | 6.16% / 7.77% | 1.2 MB |
+| `mnv3_fe_p50_int8` / `_p70_int8` | 61.05% / 46.54% | 6.05% / 3.13% | 9.01% / 5.00% | 0.8 / 0.3 MB |
 
-**Findings so far:**
-1. **Large lab → field gap:** ~96% on lab images vs ~22–25% on field photos. This is the
-   shortcut-learning effect the project set out to show.
-2. **Grad-CAM was more faithful than Grad-CAM++** on every faithfulness metric, on both models and
-   both splits (e.g. test deletion AUC 0.431 vs 0.476 for MobileNetV3, 0.481 vs 0.535 for
-   EfficientNet-B0; lower is better). On the one scratch-CNN run they were roughly tied. This is
-   uncomfortable for a "Grad-CAM++" framing, and must be reported honestly. Lesion-mask localisation
-   is where Grad-CAM++'s multi-lesion advantage would have to show.
-3. Qualitatively, on lab images heatmaps often peak on leaf edges, stems or image borders (possible
-   shortcut, but border peaks can also be a CNN padding artefact: check before claiming). On field
-   photos the lesions are often found but the class is still wrong.
-4. **PlantDoc data quality:** some images are not single leaves (e.g. a watermarked peach-fruit stock
-   photo, a whole cornfield). Kept as-is on purpose (rule 3); mention it as a limitation.
-5. Closed-form Grad-CAM++ matched `pytorch-grad-cam` to ~1e-6 on every trained seed (mean Pearson
-   r ≈ 1.0), at about 2.4× the speed on GPU.
+**Findings:**
+1. **Large lab → field gap** for every model; the from-scratch CNN is the most extreme (99.8% → 15.4%,
+   single run), consistent with shortcut learning on PlantVillage.
+2. **Generic field-style augmentation closes almost none of the gap** (`mnv3_ft_field`: field strict
+   21.8% → 23.4%). The identical restricted accuracy across seeds (692/2522 each) was checked and is a
+   coincidence, not a bug (the restricted macro-F1 differs per seed).
+3. **INT8 preserves explanations** (stability vs parent: Spearman 0.92, SSIM 0.90, top-10% IoU 0.64 on
+   test) at −2.5 points lab accuracy. **Uniform structured pruning of the feature-extraction parent
+   does not:** accuracy collapses (2-epoch fine-tune) and is only partly recovered with 8 epochs, and
+   heatmap stability falls to Spearman 0.37–0.46 (50%) and 0.21–0.40 (70%); field-set rank
+   correlation at 70% is about zero. Stacking INT8 on pruning costs further accuracy.
+4. **Grad-CAM was more faithful than Grad-CAM++** on both feature-extraction models on every
+   faithfulness metric; on the fully fine-tuned `mnv3_ft_field` they are roughly equal. Report this
+   honestly; lesion-mask localisation (needs masks) is where Grad-CAM++'s multi-lesion advantage
+   would have to show.
+5. **Caveat for Table 2:** deletion AUC of the pruned models looks "better" only because those models
+   are far less confident; their insertion AUC, Average Drop and Increase in Confidence are worse.
+   Compare faithfulness between models of similar accuracy, or use Table 3.
+6. Closed-form Grad-CAM++ matched `pytorch-grad-cam` to ~1e-6 on every trained float model.
+7. PlantDoc contains some images that are not single leaves (e.g. fruit, whole fields); kept as-is
+   (rule 3) and to be listed as a limitation.
 
 ---
 
 ## 10. What is left, in order
 
-0. **Web app, first real build (CPU only, minutes):** after the next Colab *Run all* (which now also
-   exports `WEB_MODEL`), copy `MyDrive/cropxai/web_model/*` into `web/public/model/`, `npm run build`,
-   and deploy `web/dist/` to any HTTPS static host (e.g. GitHub Pages). Then check it by hand on a real
-   iPhone (Safari) and a cheap Android phone: the automated browser tests use Chromium only.
-0b. **Field robustness (needs a GPU, owner's go-ahead):** run `mnv3_ft_field` (3 seeds, ~1.5 GPU-hours,
-   estimated) by adding it to `EXPS`. If its field accuracy beats `mnv3_fe` (decided on the results JSON,
-   not by peeking at field images), ship it in the app. Whether it also becomes the compression parent
-   is a research-scope decision for the owner.
-1. **Run Phase 4 on Colab:** one *Run all*. 15 runs, ~1–1.5 GPU-hours (estimated, assumes the INT8
-   graph runs on GPU). If the log says *"INT8 model stays on CPU"*, INT8 evaluation is much slower;
-   then consider evaluating INT8 on CPU with smaller explanation samples (and say so in the paper).
-   This code has only run on synthetic data; watch the first real run closely.
-2. **Commit the results:** download `MyDrive/cropxai/results/metrics/` into `results/metrics/`, run
-   `python scripts/make_tables.py`, commit the JSONs, `results/tables/` and the updated README.
-3. **Phase 5: core experiment write-up**
-   - Centrepiece figure: accuracy vs. model size and explanation quality (e.g. deletion AUC, ROAD,
-     stability) vs. size on one plot, from the results JSON. Add a `scripts/make_figures.py`.
-   - Which stage changes the explanations most: pruning, INT8, or both? Does compression change
-     field accuracy (shortcut learning)?
-4. **Phase 6–7: on-device**
+1. **Phase 5: core experiment write-up (no GPU needed)**
+   - `scripts/make_figures.py`: accuracy vs. weights size and explanation quality (ROAD, Table 3
+     stability) vs. size on one plot, from `results/metrics/`.
+   - Which stage changes explanations most (answer from Table 3: pruning ≫ INT8), and whether
+     compression changes field accuracy (shortcut learning).
+2. **Phase 7: on-device benchmarks**
    - ExecuTorch export in a **separate** environment (`requirements/export.txt`; pin ExecuTorch,
      torch and torchao together after reading the current docs). Export the chosen variant with two
      outputs (logits, feature maps); quantize with ExecuTorch's own XNNPACK quantizer; lower to
-     XNNPACK; produce a `.pte`. Store the classifier weight matrix (38 × C floats) as an asset.
-   - A minimal Android benchmark harness for the `.pte` (latency, memory). The user-facing app is
-     `web/`, which already does preprocessing, the closed-form heatmap and the val-tuned "unsure" state.
-   - Benchmarks on the **Pixel 6a** (primary device): size on disk, cold start, latency median + p95
-     after warm-up, heatmap latency, peak memory; many iterations, fixed device, background apps off.
-     Fill README Table 4 from a results JSON (`kind=ondevice`).
-5. **Phase 8: paper and release:** LaTeX in `research/paper/` (intro, related work, method, setup,
-   results, on-device, limitations, conclusion), tables generated from results; weights and lesion
-   annotations on Hugging Face; APK; demo video. Web dashboard only if time remains.
-6. **Needs a human (cannot be automated):**
+     XNNPACK; produce a `.pte`; store the classifier weights as an asset.
+   - A minimal Android benchmark harness (the user-facing app is the web app).
+   - Pixel 6a: size on disk, cold start, latency median + p95 after warm-up, heatmap latency, peak
+     memory; many iterations, fixed device. Fill README Table 4 from a results JSON (`kind=ondevice`).
+3. **Phase 8: paper and release:** LaTeX in `research/paper/` (tables generated from results);
+   weights and lesion annotations on Hugging Face; demo video of the live site.
+4. **Optional (state the GPU cost first):** compress a fully fine-tuned parent (e.g. `mnv3_ft_field`)
+   or use a gentler pruning schedule, to test whether the pruning collapse is due to the frozen-backbone
+   parent.
+5. **Needs a human (cannot be automated):**
    - Collect 150–300 own field leaf photos (PlantVillage classes), labels confirmed by a plant expert;
      put them in `data/field/images/<PlantVillage class>/` and re-run `prepare_data.py`.
-   - Lesion masks (CVAT or Label Studio, binary PNG, same stem) in `data/field/masks/...`. Without
-     them, pointing game and IoU stay "—".
+   - Lesion masks (CVAT or Label Studio, binary PNG, same stem) in `data/field/masks/...`; without
+     them pointing game and IoU stay "—".
    - Re-run the literature search and fill `research/notes/gap.md`.
+   - Plant pathologist / extension officer review of `knowledge/remedies.yaml`, then `reviewed: true`.
    - Add a license (none yet; the owner must choose).
-   - Have a plant pathologist or extension officer review `knowledge/remedies.yaml`, then set
-     `reviewed: true`.
 
 ---
 
@@ -415,10 +415,13 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
   `newline="\n"` (`.gitattributes` enforces LF).
 - **Editable install inside Colab** isn't importable until a runtime restart, so the notebook does
   `sys.path.insert(0, "<repo>/src")`.
-- **`torch.ao` XNNPACKQuantizer is deprecated** (moved to ExecuTorch). It works with torch 2.10; the
-  code falls back to torchao's X86 quantizer if it disappears. Record which quantizer was used.
-- **INT8 on GPU is unverified:** `QuantizedModel` tries `torch.export.passes.move_to_device_pass`
-  and falls back to CPU with a printed message.
+- **INT8 needs torch ≤ 2.10:** torch 2.14 removed `torch.ao`'s XNNPACKQuantizer. The committed INT8
+  results were made in a torch 2.10 environment. On newer torch the code silently falls back to
+  torchao's X86 quantizer (recorded as `quantizer` in each result), which is a *different* scheme:
+  don't mix the two in one table.
+- **INT8 checkpoints in a fresh process** need the `quantized_decomposed` ops registered before
+  loading (fixed in `compress/quantize.py`, commit `99839d2`); the unit test quantizes and loads in
+  one process, so it can't catch a regression here.
 - **Score-CAM memory:** the library upsamples all channels of all batch images at once (~6 GB for
   32 images), so it is run one image at a time with 128 masked inputs per forward pass.
 - **ROAD speed:** the library's scipy imputation was the main explain cost (~110 s per method-split);
@@ -458,6 +461,11 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
 | 20 Oct | Unsure threshold = smallest confidence whose accepted **val** predictions reach 99% accuracy | rule 3; val is lab data, so the app also shows measured field accuracy |
 | 20 Oct | Added `mnv3_ft_field` (full fine-tune, field-style augmentation) as an opt-in experiment; existing fingerprints unchanged (checked) | 22% field accuracy makes the current model unfit for real farms |
 | 20 Oct | No AI attribution trailers in commits (rule 8 confirmed by the owner) | owner's choice |
+| 20 Oct | Baselines retrained and the Phase 4 queue run on an RTX 5070 Ti laptop (unchanged configs; manifest paths and hashes verified) | free Colab GPU quota exhausted |
+| 20 Oct | Added 8-epoch fine-tune variants `mnv3_fe_p50_ft8` / `p70_ft8` (the 2-epoch variants are kept) | the 2-epoch fine-tune was still improving on val when it stopped |
+| 21 Oct | Ran `mnv3_ft_field` (3 seeds) | test whether field-style augmentation narrows the lab → field gap (it barely does) |
+| 25 Oct | Demo site (model picker, Results, Explainability, About) deployed on Render at https://crop-disease-xai.onrender.com/ | public showcase; the model runs in the visitor's browser |
+| 25 Oct | Name check as git hooks + GitHub Action; all branches merged into `main` | keep AI attribution out; one organized branch |
 
 **Limitations this creates (state them in the paper):** compression is studied on one architecture
 whose backbone was trained by feature extraction (not full fine-tuning); there is no distillation

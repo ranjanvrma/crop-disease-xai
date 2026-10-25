@@ -8,6 +8,7 @@ Writes ``results/tables/<table>.{csv,md}`` and replaces the matching
 """
 
 import argparse
+import sys
 
 from cropxai import REPO_ROOT
 from cropxai.utils.config import resolve_path
@@ -32,6 +33,7 @@ def main() -> None:
     parser.add_argument("--results-dir", default="results", help="folder holding metrics/ (default: repo results/)")
     args = parser.parse_args()
     results = resolve_path(args.results_dir)
+    sys.stdout.reconfigure(encoding="utf-8")  # table headers contain arrows; Windows consoles default to cp1252
 
     out = results / "tables"
     readme = REPO_ROOT / "README.md"
@@ -44,9 +46,9 @@ def main() -> None:
             continue
         table = build(runs)
         out.mkdir(parents=True, exist_ok=True)
-        table.to_csv(out / f"{name}.csv", index=False)
+        table.to_csv(out / f"{name}.csv", index=False, lineterminator="\n")
         md = to_markdown(table)
-        (out / f"{name}.md").write_text(md + "\n", encoding="utf-8")
+        (out / f"{name}.md").write_text(md + "\n", encoding="utf-8", newline="\n")
         text = replace_between_markers(text, marker, md)
         print(f"{name}:\n{md}\n")
 
