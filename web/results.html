@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>CropXAI · Results</title>
+    <meta name="description" content="Measured accuracy, size, calibration, explanation quality and stability of every model." />
+    <meta name="theme-color" content="#1f5130" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body data-page="results">
+    <header class="top">
+      <div class="brand">
+        <img src="./icons/icon.svg" alt="" width="32" height="32" />
+        <h1>CropXAI</h1>
+      </div>
+      <nav class="nav" aria-label="Pages">
+        <a href="./">Diagnose</a>
+        <a href="./explain.html">Explainability</a>
+        <a href="./results.html" aria-current="page">Results</a>
+        <a href="./about.html">About</a>
+      </nav>
+    </header>
+
+    <main class="prose">
+      <section class="card">
+        <h2>Results</h2>
+        <p>Every number on this page is read from the experiment output files in the repository
+          (<code>results/tables/</code>, built by <code>scripts/make_tables.py</code> from the per-run JSON files). Values are the
+          mean ± standard deviation over 3 training seeds; <em>(n=1)</em> marks a single run.</p>
+        <p id="datasets" class="muted small"></p>
+      </section>
+
+      <section class="card">
+        <h2>Lab photos vs. real field photos</h2>
+        <p class="muted small">Top-1 accuracy on the held-out PlantVillage lab test set and on PlantDoc field photos (strict: all 38 classes allowed).</p>
+        <div id="gapchart" class="chart"></div>
+      </section>
+
+      <section class="card">
+        <h2>Table 1 · Accuracy, size, calibration and speed</h2>
+        <p class="muted small">ECE = expected calibration error (lower is better: confidence matches how often the model is right).
+          Field "restricted" only allows the classes that occur in the field set. INT8 latency is not measured on desktop
+          (it is a phone measurement). The highlighted row is the model the app uses by default.</p>
+        <div id="table1" class="tablewrap"></div>
+      </section>
+
+      <section class="card">
+        <h2>Table 2 · Explanation quality</h2>
+        <p class="muted small">Faithfulness of each heatmap method (↓ lower is better, ↑ higher is better), on 300 lab test images
+          and 300 field images (Score-CAM on 50). Pointing game and IoU need lesion masks, which do not exist yet, so they show "—".
+          See <a href="./explain.html">Explainability</a> for what each metric means.</p>
+        <div id="table2" class="tablewrap"></div>
+      </section>
+
+      <section class="card">
+        <h2>Table 3 · Heatmap stability under compression</h2>
+        <p class="muted small">How similar each compressed model's heatmap is to the uncompressed parent's (mnv3_fe) on the same images,
+          for the class the parent predicts. 1 = identical.</p>
+        <div id="table3" class="tablewrap"></div>
+      </section>
+    </main>
+
+    <footer class="muted small">
+      <p>Research prototype. Not a substitute for a local agronomist or extension officer.</p>
+    </footer>
+    <script type="module" src="./src/pages.js"></script>
+  </body>
+</html>

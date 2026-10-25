@@ -14,7 +14,7 @@ async function noSideScroll(page) {
 
 test('diagnoses a photo and explains it on the device', async ({ page }, info) => {
   await ready(page);
-  await expect(page.locator('#banner')).toContainText('Demo model');
+  await expect(page.locator('#banner')).toBeVisible();
   await noSideScroll(page);
 
   await page.setInputFiles('#gallery', PHOTO);

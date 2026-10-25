@@ -19,6 +19,12 @@
         <img src="./icons/icon.svg" alt="" width="32" height="32" />
         <h1>CropXAI</h1>
       </div>
+      <nav class="nav" aria-label="Pages">
+        <a href="./" aria-current="page">Diagnose</a>
+        <a href="./explain.html">Explainability</a>
+        <a href="./results.html">Results</a>
+        <a href="./about.html">About</a>
+      </nav>
       <span id="net" class="chip" aria-live="polite"></span>
     </header>
 
@@ -39,6 +45,10 @@
           </label>
         </div>
         <p class="drop muted" id="drop">or drop an image here</p>
+        <label class="modelpick small">Model
+          <select id="model" aria-describedby="modelnote"></select>
+        </label>
+        <p id="modelnote" class="muted small"></p>
         <p id="status" class="status" role="status" aria-live="polite">Loading the model…</p>
       </section>
 

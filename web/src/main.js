@@ -13,6 +13,8 @@ const MAX_DECODE_FACTOR = 4;
 
 let bundle = null;
 let current = null; // the last analysed image
+let lastFile = null; // re-analysed when the user switches model
+let models = { default: null, models: [] };
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -49,13 +51,46 @@ function showModelInfo() {
     banner.innerHTML = '<strong>Demo model.</strong> This build uses an untrained model, so every diagnosis is meaningless. It only shows how the app works.';
   } else if (acc) {
     banner.className = 'banner';
-    banner.innerHTML = `<strong>Lab-trained model.</strong> In testing it was right ${pct(acc.test_top1)} of the time on lab photos but only ${pct(acc.field_strict_top1)} on ${acc.field_n} real field photos. Use the heatmap and the checklist to judge each result.`;
+    banner.innerHTML = `<strong>Lab-trained model.</strong> In testing it was right ${pct(acc.test_top1)} of the time on lab photos but only ${pct(acc.field_strict_top1)} on ${acc.field_n} real field photos (this seed). Use the heatmap and the checklist to judge each result. <a href="./explain.html#field-gap">Why the gap?</a>`;
   } else {
     banner.className = 'banner';
     banner.innerHTML = '<strong>Lab-trained model.</strong> Its accuracy on real field photos has not been measured for this build. Use the heatmap and the checklist to judge each result.';
   }
   banner.hidden = false;
   $('modelinfo').textContent = `Model: ${m.arch} (${m.run_name}, seed ${m.seed}, commit ${m.git_commit})${m.demo ? ', demo' : ''}. Loaded in ${Math.round(bundle.loadMs)} ms.`;
+}
+
+// models/index.json (scripts/export_site_data.py) lists every exported bundle.
+// The choice is kept in the URL (?model=...) so a demo link opens the same model.
+async function loadModelList() {
+  const r = await fetch('./models/index.json', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`models/index.json: ${r.status}`);
+  models = await r.json();
+  const wanted = new URLSearchParams(location.search).get('model');
+  const chosen = models.models.some((m) => m.id === wanted) ? wanted : models.default;
+  $('model').innerHTML = models.models.map((m) => `<option value="${esc(m.id)}" ${m.id === chosen ? 'selected' : ''}>${esc(m.label)} (${m.size_mb} MB)</option>`).join('');
+  return chosen;
+}
+
+async function useModel(id) {
+  const info = models.models.find((m) => m.id === id);
+  $('modelnote').textContent = info ? info.note : '';
+  $('status').textContent = `Loading ${id}…`;
+  $('status').classList.remove('error');
+  document.body.dataset.ready = 'false';
+  $('model').disabled = true;
+  try {
+    bundle = await loadBundle(new URL(`./models/${id}/`, document.baseURI).href);
+    showModelInfo();
+    $('status').textContent = 'Ready.';
+    document.body.dataset.ready = 'true';
+    if (lastFile) await analyse(lastFile);
+  } catch (err) {
+    $('status').textContent = `Could not load the model (${err.message}). Run scripts/export_web.py first.`;
+    $('status').classList.add('error');
+  } finally {
+    $('model').disabled = false;
+  }
 }
 
 async function init() {
@@ -67,12 +102,9 @@ async function init() {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
   try {
-    bundle = await loadBundle();
-    showModelInfo();
-    $('status').textContent = 'Ready.';
-    document.body.dataset.ready = 'true';
+    await useModel(await loadModelList());
   } catch (err) {
-    $('status').textContent = `Could not load the model (${err.message}). Run scripts/export_web.py first.`;
+    $('status').textContent = `Could not load the model list (${err.message}). Run scripts/export_site_data.py first.`;
     $('status').classList.add('error');
   }
 }
@@ -107,6 +139,7 @@ async function pixelsOf(file) {
 
 async function analyse(file) {
   if (!bundle || !file) return;
+  lastFile = file;
   $('status').textContent = 'Looking at the leaf…';
   $('status').classList.remove('error');
   try {
@@ -321,6 +354,12 @@ for (const id of ['camera', 'gallery']) {
 }
 $('opacity').addEventListener('input', () => {
   if (current) drawOverlay($('overlay'), current.pre.crop, current.heat, bundle.meta.image_size, Number($('opacity').value));
+});
+$('model').addEventListener('change', (e) => {
+  const url = new URL(location.href);
+  url.searchParams.set('model', e.target.value);
+  history.replaceState(null, '', url);
+  useModel(e.target.value);
 });
 $('again').addEventListener('click', () => { $('result').hidden = true; $('pick').scrollIntoView({ behavior: 'smooth' }); });
 const drop = document.body;

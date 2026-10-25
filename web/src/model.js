@@ -1,4 +1,4 @@
-// Loads the exported bundle (web/public/model/, written by scripts/export_web.py)
+// Loads an exported bundle (web/public/models/<run>/, written by scripts/export_web.py)
 // and runs it with ONNX Runtime Web on the CPU through WebAssembly, which every
 // current phone and desktop browser supports.
 
@@ -11,7 +11,7 @@ const BASE = new URL('./', document.baseURI).href;
 // falls back to one thread on its own, so ask for threads only when available.
 ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
 
-export async function loadBundle(base = `${BASE}model/`) {
+export async function loadBundle(base = `${BASE}models/mnv3_ft_field/`) {
   // The service worker serves these from its own cache after the first visit, so the
   // browser's HTTP cache is skipped (it can refuse a file this large in private windows).
   const get = (name) => fetch(`${base}${name}`, { cache: 'no-store' });

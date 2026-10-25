@@ -21,6 +21,25 @@ works without a connection.
 - **What to do:** cultural, organic and chemical options for the predicted class, with a disclaimer.
   The remedies have **not yet been reviewed by a plant pathologist** (`reviewed: false`).
 
+## Demo website (Render)
+
+The site has four pages: **Diagnose** (the app, with a picker for every exported model),
+**Explainability** (methods, faithfulness, stability under compression, calibration and the
+lab-to-field gap), **Results** (Tables 1–3) and **About** (remedies for all 38 classes).
+All numbers come from `web/public/data/site.json`, generated from `results/` by
+`scripts/export_site_data.py`.
+
+The model bundles in `web/public/models/<run>/` are committed, so a static host only needs Node:
+`render.yaml` at the repo root builds `web/` with `npm ci && npm run build` and publishes `web/dist`.
+Only the default model is downloaded on the first visit; the others when first chosen.
+
+To refresh the models and data:
+
+```bash
+python scripts/export_web.py --config configs/experiment/mnv3_ft_field.yaml --seed 0 --out web/public/models/mnv3_ft_field
+python scripts/export_site_data.py
+```
+
 ## Run it
 
 ```bash
