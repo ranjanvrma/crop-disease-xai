@@ -1,15 +1,21 @@
 import { drawHidden, drawMap, drawOverlay, drawRGB, legendGradient } from './colormap.js';
+import { animate } from 'motion';
+import { icon } from './icons.js';
 import { loadBundle, run } from './model.js';
 import { preprocess, shortSideSize } from './preprocess.js';
 import {
   featureMap, heatmap, hidePixels, oodScore, pixelsToHide, scoreDecomposition, softmax, topK,
 } from './xai.js';
+import { enter, growBars, parallax, reduceMotion, tilt } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 const HIDE_FRACTION = 0.2;
 // Very large photos are first scaled down by the browser so a phone never holds a
 // 50-megapixel bitmap; the exact training resize (preprocess.js) runs after that.
 const MAX_DECODE_FACTOR = 4;
+// Larger files are refused before decoding, so a phone is never asked to hold a huge bitmap.
+const MAX_FILE_MB = 40;
+const HERO_SAMPLE = './samples/tomato-early-blight-lab.jpg';
 
 let bundle = null;
 let current = null; // the last analysed image
@@ -39,7 +45,7 @@ function label(i) {
 function showNetwork() {
   const net = $('net');
   net.textContent = navigator.onLine ? 'Online' : 'Offline: still works';
-  net.className = `chip ${navigator.onLine ? '' : 'warn'}`;
+  net.className = `net-chip ${navigator.onLine ? '' : 'warn'}`;
 }
 
 function showModelInfo() {
@@ -75,20 +81,19 @@ async function loadModelList() {
 async function useModel(id) {
   const info = models.models.find((m) => m.id === id);
   $('modelnote').textContent = info ? info.note : '';
-  $('status').textContent = `Loading ${id}…`;
-  $('status').classList.remove('error');
+  setStatus(`Loading ${id}…`, 'loading');
   document.body.dataset.ready = 'false';
   $('model').disabled = true;
   try {
     bundle = await loadBundle(new URL(`./models/${id}/`, document.baseURI).href);
     showModelInfo();
     renderSupported();
-    $('status').textContent = 'Ready.';
+    setStatus('Ready. Take a photo, choose an image or try a sample.');
     document.body.dataset.ready = 'true';
+    heroScan();
     if (lastFile) await analyse(lastFile);
   } catch (err) {
-    $('status').textContent = `Could not load the model (${err.message}). Run scripts/export_web.py first.`;
-    $('status').classList.add('error');
+    setStatus(`Could not load the model (${err.message}). Check your connection and reload the page.`, 'error');
   } finally {
     $('model').disabled = false;
   }
@@ -96,6 +101,9 @@ async function useModel(id) {
 
 async function init() {
   $('legend').style.background = legendGradient();
+  $('hero-legend').style.background = legendGradient();
+  tilt($('scan-card'));
+  parallax($('scan-card'), 36);
   showNetwork();
   addEventListener('online', showNetwork);
   addEventListener('offline', showNetwork);
@@ -105,9 +113,16 @@ async function init() {
   try {
     await useModel(await loadModelList());
   } catch (err) {
-    $('status').textContent = `Could not load the model list (${err.message}). Run scripts/export_site_data.py first.`;
-    $('status').classList.add('error');
+    setStatus(`Could not load the model list (${err.message}). Check your connection and reload the page.`, 'error');
   }
+}
+
+/** One status line with an optional state: 'loading' (spinner) or 'error'. */
+function setStatus(text, state = '') {
+  const el = $('status');
+  el.textContent = text;
+  el.classList.toggle('loading', state === 'loading');
+  el.classList.toggle('error', state === 'error');
 }
 
 // ---------- image input ----------
@@ -140,9 +155,16 @@ async function pixelsOf(file) {
 
 async function analyse(file) {
   if (!bundle || !file) return;
+  if (file.type && !file.type.startsWith('image/')) {
+    setStatus(`"${file.name}" is not an image. Choose a JPG, PNG or WebP photo of a leaf.`, 'error');
+    return;
+  }
+  if (file.size > MAX_FILE_MB * 1024 * 1024) {
+    setStatus(`That file is ${Math.round(file.size / 1048576)} MB; the limit is ${MAX_FILE_MB} MB. Use a smaller photo.`, 'error');
+    return;
+  }
   lastFile = file;
-  $('status').textContent = 'Looking at the leaf…';
-  $('status').classList.remove('error');
+  setStatus('Looking at the leaf…', 'loading');
   try {
     const t0 = performance.now();
     const px = await pixelsOf(file);
@@ -154,13 +176,14 @@ async function analyse(file) {
     const ood = bundle.ood ? oodScore(out.features, bundle.meta.feature_shape, bundle.ood) : null;
     current = { px, pre, out, probs, ranked, ood, tPre, shown: ranked[0][0] };
     render();
-    $('status').textContent = '';
+    setStatus('Done. The result is below.');
     $('result').hidden = false;
-    $('verdict').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    $('verdict').scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+    enter([$('verdict'), $('remedy'), $('why'), $('expert')]);
+    growBars($('verdict'));
     await faithfulnessCheck();
   } catch (err) {
-    $('status').textContent = err.message;
-    $('status').classList.add('error');
+    setStatus(err.message, 'error');
   }
 }
 
@@ -253,7 +276,15 @@ function renderVerdict() {
     <h2>${healthy ? 'Looks healthy' : esc(r?.name ?? label(best))}</h2>
     <p class="confidence"><span class="bar"><i style="width:${(100 * p).toFixed(1)}%"></i></span> ${pct(p)} confidence</p>
     ${flagged() ? '<p class="banner">Shown on request: this photo was flagged as unlike the training photos, so this answer is unreliable.</p>' : ''}
-    ${healthy ? '' : `<p><span class="chip urgency">${esc(r.urgency)} urgency</span> <span class="chip">${esc(r.kind)}</span>${r.pathogen ? ` <em class="muted small">${esc(r.pathogen)}</em>` : ''}</p>`}`;
+    ${healthy ? '' : `<p><span class="chip urgency">${esc(r.urgency)} urgency</span> <span class="chip">${esc(r.kind)}</span>${r.pathogen ? ` <em class="muted small">${esc(r.pathogen)}</em>` : ''}</p>`}
+    <div class="verdict-actions"><button type="button" class="btn small" data-copy="${esc(summaryText(best, p, healthy))}" data-copy-done="Result copied">${icon('copy', { size: 18 })} Copy result</button></div>`;
+}
+
+/** Plain-text summary of a diagnosis, for sharing. */
+function summaryText(best, p, healthy) {
+  const r = bundle.remedies.classes[bundle.meta.classes[best]];
+  const what = healthy ? `${r?.crop ?? ''}: looks healthy` : label(best);
+  return `${what} (${pct(p)} confidence). Checked with CropXAI (${bundle.meta.run_name}), a research prototype: always confirm with a local expert. ${location.origin}${location.pathname}`;
 }
 
 function currentHeat() {
@@ -424,6 +455,39 @@ function renderHood() {
   }
 }
 
+// ---------- hero: the model scanning a real sample leaf ----------
+
+let heroDone = false;
+function heroScan() {
+  if (heroDone || !bundle) return;
+  heroDone = true;
+  const idle = window.requestIdleCallback ?? ((f) => setTimeout(f, 200));
+  idle(async () => {
+    const chip = $('hero-result');
+    try {
+      const r = await fetch(HERO_SAMPLE);
+      if (!r.ok) throw new Error(String(r.status));
+      const px = await pixelsOf(await r.blob());
+      const pre = preprocess(px.rgba, px.w, px.h, bundle.meta);
+      const out = await run(bundle, pre.input);
+      const [[best, p]] = topK(softmax(out.logits), 1);
+      const s = bundle.meta.image_size;
+      const canvas = $('hero-canvas');
+      drawOverlay(canvas, pre.crop, heatmap(out.features, bundle.meta.feature_shape, bundle.weight, best, s), s, 0.62);
+      chip.querySelector('strong').textContent = label(best);
+      chip.querySelector('.muted').textContent = `${pct(p)} confidence, computed just now`;
+      if (reduceMotion.matches) { canvas.style.clipPath = 'none'; return; }
+      const line = document.querySelector('.scan-card .scanline');
+      animate(line, { top: ['0%', '100%'], opacity: [1, 1, 0] }, { duration: 1.6, ease: 'easeInOut' });
+      animate(canvas, { clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'] }, { duration: 1.6, ease: 'easeInOut' });
+      animate(chip, { scale: [0.92, 1], opacity: [0.6, 1] }, { type: 'spring', stiffness: 260, damping: 18, delay: 1.4 });
+    } catch {
+      chip.querySelector('strong').textContent = 'Sample leaf';
+      chip.querySelector('.muted').textContent = 'the live example could not run';
+    }
+  });
+}
+
 // ---------- events ----------
 
 for (const id of ['camera', 'gallery']) {
@@ -446,12 +510,15 @@ for (const b of document.querySelectorAll('[data-sample]')) {
       const blob = await r.blob();
       analyse(new File([blob], b.dataset.sample.split('/').pop(), { type: blob.type }));
     } catch (err) {
-      $('status').textContent = `Could not load the sample (${err.message}).`;
-      $('status').classList.add('error');
+      setStatus(`Could not load the sample (${err.message}).`, 'error');
     }
   });
 }
-$('again').addEventListener('click', () => { $('result').hidden = true; $('pick').scrollIntoView({ behavior: 'smooth' }); });
+$('again').addEventListener('click', () => {
+  $('result').hidden = true;
+  $('pick').scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth' });
+  $('gallery').focus({ preventScroll: true });
+});
 const drop = document.body;
 drop.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dragging'); });
 drop.addEventListener('dragleave', () => document.body.classList.remove('dragging'));

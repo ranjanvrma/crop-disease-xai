@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Privacy notice · CropXAI</title>
+    <meta name="description" content="CropXAI checks leaf photos inside your browser and never uploads them. What is stored on your device, what the hosting provider sees, and how to remove it." />
+    <link rel="canonical" href="https://crop-disease-xai.onrender.com/privacy.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="CropXAI" />
+    <meta property="og:title" content="CropXAI privacy notice" />
+    <meta property="og:description" content="Photos are checked inside your browser and never uploaded. No accounts, cookies, analytics or tracking." />
+    <meta property="og:url" content="https://crop-disease-xai.onrender.com/privacy.html" />
+    <meta property="og:image" content="https://crop-disease-xai.onrender.com/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#f4f2e9" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <script src="./theme-init.js"></script>
+    <link rel="stylesheet" href="./src/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Diagnose", "item": "https://crop-disease-xai.onrender.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Privacy", "item": "https://crop-disease-xai.onrender.com/privacy.html" }
+        ]
+      }
+    </script>
+  </head>
+  <body data-page="privacy">
+    <!--@header privacy-->
+
+    <main id="main" class="prose" tabindex="-1">
+      <div class="wrap">
+        <header class="page-head">
+          <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="./">Diagnose</a></li><li><span aria-current="page">Privacy</span></li></ol></nav>
+          <p class="eyebrow-tag">{{icon:shield}} Last updated 25 October 2026</p>
+          <h1 data-reveal>Privacy notice</h1>
+          <p class="lede" data-reveal>In short: your photos are checked inside your browser and never leave your device. There are no accounts, cookies, analytics or ads.</p>
+        </header>
+
+        <article class="card legal" data-reveal>
+          <h2>Your photos</h2>
+          <p>When you take or choose a photo, the model, the heatmap and every check run on your device, inside the browser (ONNX Runtime Web and WebAssembly).
+            The photo is not uploaded, not sent to any server, and not kept after you leave or reload the page.</p>
+
+          <h2>What is stored on your device</h2>
+          <ul>
+            <li><b>The app and the model files</b>, kept in your browser's offline cache (a service worker) so the site works without a connection.</li>
+            <li><b>Your theme choice</b> (light or dark), if you change it, saved in your browser's local storage under <code>cropxai-theme</code>.</li>
+          </ul>
+          <p>Neither contains information about you or your photos. A chosen model can appear in the page address (<code>?model=…</code>); it is not stored anywhere else.</p>
+
+          <h2>What the site does not do</h2>
+          <ul>
+            <li>No accounts or sign-in, and no forms that send data.</li>
+            <li>No cookies.</li>
+            <li>No analytics, tracking pixels, advertising or third-party scripts. Fonts and icons are served from this site, not from third parties.</li>
+          </ul>
+
+          <h2>Hosting</h2>
+          <p>The site is a set of static files served by <a href="https://render.com/privacy" rel="noopener">Render</a>. Like any web host, Render's servers receive the
+            standard information your browser sends with every request (such as your IP address, browser type and the files requested) in order to deliver the pages.
+            The project does not combine that information with anything else.</p>
+
+          <h2>Removing stored data</h2>
+          <p>Clear this site's data in your browser settings (often called "Site settings" or "Clear browsing data"), or uninstall the app if you installed it.
+            That removes the offline cache and the theme choice.</p>
+
+          <h2>Questions and changes</h2>
+          <p>Questions about privacy can be raised on the project's <a href="https://github.com/ranjanvrma/crop-disease-xai" rel="noopener">GitHub repository</a>.
+            If this notice changes, the date at the top will change with it.</p>
+        </article>
+      </div>
+    </main>
+
+    <!--@footer privacy-->
+    <script type="module" src="./src/site.js"></script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Page not found · CropXAI</title>
+    <meta name="description" content="This page does not exist." />
+    <meta name="robots" content="noindex" />
+    <!-- Served for any missing path, also nested ones, so resolve every relative URL from the site root. -->
+    <base href="/" />
+    <meta name="theme-color" content="#f4f2e9" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <script src="/theme-init.js"></script>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body data-page="notfound">
+    <!--@header notfound-->
+
+    <main id="main" tabindex="-1">
+      <div class="wrap notfound">
+        <p class="code" aria-hidden="true">404</p>
+        <h1>This page does not exist</h1>
+        <p class="muted">The link may be old or mistyped. Everything on the site is one click away from here.</p>
+        <div class="buttons">
+          <a class="btn primary" href="/">{{icon:camera}} Check a leaf</a>
+          <a class="btn" href="/explain.html">{{icon:microscope}} Explainability</a>
+          <a class="btn" href="/results.html">{{icon:chart}} Results</a>
+        </div>
+      </div>
+    </main>
+
+    <!--@footer notfound-->
+    <script type="module" src="./src/site.js"></script>
+  </body>
+</html>

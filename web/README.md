@@ -29,11 +29,32 @@ works without a connection.
 
 ## Demo website (Render)
 
-The site has four pages: **Diagnose** (the app, with a picker for every exported model),
+The site has four main pages: **Diagnose** (the app, with a picker for every exported model),
 **Explainability** (methods, faithfulness, stability under compression, calibration and the
-lab-to-field gap), **Results** (Tables 1–3) and **About** (remedies for all 38 classes).
+lab-to-field gap), **Results** (Tables 1–3) and **About** (FAQ and remedies for all 38 classes),
+plus **Privacy**, **Terms** and a **404** page.
 All numbers come from `web/public/data/site.json`, generated from `results/` by
 `scripts/export_site_data.py`.
+
+How the front end is put together (plain HTML, CSS and JavaScript, built by Vite):
+
+- **Shared header and footer** live in `partials/`. `vite.config.js` expands `<!--@header page-->`,
+  `<!--@footer page-->` and `{{icon:name}}` into every page at build time, so each page is complete
+  static HTML. Icons are [Lucide](https://lucide.dev) SVGs inlined from `src/icons.js`.
+- **Animation** uses [Motion](https://motion.dev)'s vanilla API in `src/ui.js`: entrance and
+  scroll reveals (`[data-reveal]`), hover and press springs, the menu, accordions, count-ups and
+  bar growth, the tilting "scan card" on the home page (the real model running on the sample leaf).
+  Everything is skipped under `prefers-reduced-motion`, and content is visible without JavaScript.
+- **Theme:** light and dark, following the device unless the visitor picks one (stored in
+  `localStorage` as `cropxai-theme`, applied before paint by `public/theme-init.js`).
+- **Fonts** (Bricolage Grotesque, Atkinson Hyperlegible Next) are self-hosted from npm packages.
+  The site makes no requests to other origins.
+- **Security headers** are defined once in `security-headers.js` (used by `vite preview`) and
+  repeated in `render.yaml` for the live site; `npm test` fails if the two drift apart. The CSP
+  allows only same-origin resources plus `wasm-unsafe-eval` for ONNX Runtime.
+- **SEO:** each page has its own title, description, canonical URL, Open Graph image and JSON-LD
+  (WebApplication, BreadcrumbList, FAQPage); `public/robots.txt` and `public/sitemap.xml` list the
+  pages. Figures ship as WebP with JPEG fallback.
 
 The model bundles in `web/public/models/<run>/` are committed, so a static host only needs Node:
 `render.yaml` at the repo root builds `web/` with `npm ci && npm run build` and publishes `web/dist`.
@@ -73,7 +94,7 @@ offers "Install app"; on iPhone use Safari's Share menu). The site must be serve
 ```bash
 python web/test/make_fixtures.py     # reference outputs from the Python pipeline
 cd web
-npm test                             # parity: preprocessing, ONNX outputs, heatmaps, score split
+npm test                             # parity (preprocessing, ONNX outputs, heatmaps, score split) and security headers
 npm run build && npm run test:e2e    # browser tests: 4 phone/tablet sizes + desktop, and offline mode
 ```
 

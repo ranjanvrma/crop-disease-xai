@@ -3,145 +3,215 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>CropXAI</title>
-    <meta name="description" content="Offline crop-leaf disease check that shows where the model looked and why." />
-    <meta name="theme-color" content="#1f5130" />
+    <title>CropXAI: crop leaf disease check that shows its evidence</title>
+    <meta name="description" content="Photograph a crop leaf to check it for 38 conditions across 14 crops. CropXAI runs in your browser, works offline, and shows on a heatmap which part of the leaf drove its answer." />
+    <link rel="canonical" href="https://crop-disease-xai.onrender.com/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CropXAI" />
+    <meta property="og:title" content="CropXAI: crop leaf disease check that shows its evidence" />
+    <meta property="og:description" content="Check a leaf on your device, see a Grad-CAM++ heatmap of where the model looked, and get general advice on what to do." />
+    <meta property="og:url" content="https://crop-disease-xai.onrender.com/" />
+    <meta property="og:image" content="https://crop-disease-xai.onrender.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="CropXAI: a tomato leaf with a heatmap over its lesions" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#f4f2e9" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CropXAI" />
+    <script src="./theme-init.js"></script>
     <link rel="stylesheet" href="./src/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "CropXAI",
+        "url": "https://crop-disease-xai.onrender.com/",
+        "description": "Offline crop-leaf disease check for 38 conditions across 14 crops that shows a Grad-CAM++ heatmap of where the model looked. Runs entirely in the browser; photos are not uploaded.",
+        "applicationCategory": "UtilitiesApplication",
+        "operatingSystem": "Any modern web browser",
+        "isAccessibleForFree": true,
+        "browserRequirements": "Requires WebAssembly",
+        "codeRepository": "https://github.com/ranjanvrma/crop-disease-xai"
+      }
+    </script>
   </head>
   <body data-page="diagnose">
-    <header class="top">
-      <div class="brand">
-        <img src="./icons/icon.svg" alt="" width="32" height="32" />
-        <h1>CropXAI</h1>
-      </div>
-      <nav class="nav" aria-label="Pages">
-        <a href="./" aria-current="page">Diagnose</a>
-        <a href="./explain.html">Explainability</a>
-        <a href="./results.html">Results</a>
-        <a href="./about.html">About</a>
-      </nav>
-      <span id="net" class="chip" aria-live="polite"></span>
-    </header>
+    <!--@header diagnose-->
 
-    <main>
-      <section class="hero">
-        <h2>Is your crop sick?</h2>
-        <p>Check a leaf in seconds, see <em>why</em> the model decided, and get advice on what to do.</p>
-        <ol class="howto">
-          <li><b>1</b><span><strong>Photograph one leaf</strong>Close up, in daylight, filling most of the frame.</span></li>
-          <li><b>2</b><span><strong>Wait a moment</strong>The check runs on this device. Your photo is never uploaded.</span></li>
-          <li><b>3</b><span><strong>Read the result</strong>The problem, where the model looked, and what to do next.</span></li>
-        </ol>
-      </section>
-
-      <section class="card pick" id="pick">
-        <h2>Check a leaf</h2>
-        <div class="buttons">
-          <label class="btn primary">
-            <input id="camera" type="file" accept="image/*" capture="environment" hidden />
-            Take photo
-          </label>
-          <label class="btn">
-            <input id="gallery" type="file" accept="image/*" hidden />
-            Choose image
-          </label>
-        </div>
-        <p class="drop muted" id="drop">or drop an image anywhere on this page</p>
-        <div class="samples" role="group" aria-label="Try a sample photo">
-          <span class="muted small">No leaf to hand? Try a sample:</span>
-          <button type="button" class="sample" data-sample="./samples/tomato-early-blight-lab.jpg"><img src="./samples/tomato-early-blight-lab.jpg" alt="" width="56" height="56" /><span>Tomato leaf<br /><small>lab photo</small></span></button>
-          <button type="button" class="sample" data-sample="./samples/apple-scab-lab.jpg"><img src="./samples/apple-scab-lab.jpg" alt="" width="56" height="56" /><span>Apple leaf<br /><small>lab photo</small></span></button>
-          <button type="button" class="sample" data-sample="./samples/corn-gray-leaf-spot-field.jpg"><img src="./samples/corn-gray-leaf-spot-field.jpg" alt="" width="56" height="56" /><span>Corn leaf<br /><small>field photo</small></span></button>
-          <button type="button" class="sample" data-sample="./samples/cat-not-a-crop.jpg"><img src="./samples/cat-not-a-crop.jpg" alt="" width="56" height="56" /><span>A cat<br /><small>not a crop</small></span></button>
-        </div>
-        <p id="status" class="status" role="status" aria-live="polite">Loading the model…</p>
-        <section id="banner" class="banner" hidden></section>
-        <details class="advanced">
-          <summary>Advanced: choose the model</summary>
-          <label class="modelpick small">Model
-            <select id="model" aria-describedby="modelnote"></select>
-          </label>
-          <p id="modelnote" class="muted small"></p>
-        </details>
-      </section>
-
-      <section class="card" id="supported"><h2>What it can check</h2><p class="muted">Loading the list of crops…</p></section>
-
-      <div id="result" hidden>
-        <section class="card verdict" id="verdict" aria-live="polite"></section>
-
-        <section class="card" id="remedy"></section>
-
-        <section class="card">
-          <h2>Why the model thinks so</h2>
-          <div class="grid">
-            <div>
-              <figure class="viewer">
-                <canvas id="overlay" aria-label="Leaf photo with heatmap"></canvas>
-                <figcaption>
-                  <div class="legend"><span>ignored</span><i id="legend"></i><span>most important</span></div>
-                </figcaption>
-              </figure>
-              <label class="slider">Heatmap strength
-                <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.6" />
-              </label>
+    <main id="main" tabindex="-1">
+      <div class="wrap">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <p class="eyebrow-tag">{{icon:shield}} Runs on your device. Photos never leave it.</p>
+            <h1 id="hero-title" data-reveal>Check a crop leaf, and see the <span class="heat-word">evidence</span>.</h1>
+            <p class="lede" data-reveal>CropXAI names the most likely problem among 38 conditions of 14 crops, highlights the part of the leaf that drove that answer, and suggests what to do next. It works in your browser, offline too.</p>
+            <div class="buttons" data-reveal>
+              <a class="btn primary" href="#pick">{{icon:camera}} Check a leaf</a>
+              <a class="btn" href="./explain.html">{{icon:microscope}} How it explains itself</a>
             </div>
-            <div>
-              <p class="lead-in">The coloured area is what the model looked at. Check that it is on the leaf and shows these signs:</p>
-              <ul id="lookfor" class="ticks"></ul>
-              <p class="muted small">If the colour sits on the background, soil or your hand, don't trust the result.</p>
-              <div class="classpick" id="classpick" role="group" aria-label="Show evidence for"></div>
-              <p class="muted small" id="heatnote"></p>
-            </div>
+            <ul class="hero-facts" role="list" data-reveal>
+              <li>{{icon:sprout}} 14 crops, 38 conditions</li>
+              <li>{{icon:wifi-off}} Works offline</li>
+              <li>{{icon:shield}} No account, no upload</li>
+            </ul>
+          </div>
+
+          <div class="scan-stage" id="scan-stage">
+            <figure class="scan-card" id="scan-card" aria-describedby="scan-caption">
+              <div class="frame">
+                <img src="./samples/tomato-early-blight-lab.jpg" alt="Tomato leaf with brown early-blight lesions, from the PlantVillage dataset" width="256" height="256" fetchpriority="high" />
+                <canvas id="hero-canvas" aria-hidden="true"></canvas>
+                <span class="scanline" aria-hidden="true"></span>
+              </div>
+              <div class="scan-chip where" aria-hidden="true">{{icon:scan}}<span><strong>Where it looked</strong><i class="legend-bar" id="hero-legend"></i></span></div>
+              <div class="scan-chip result" id="hero-result">{{icon:leaf}}<span><strong>Analysing a sample leaf</strong><span class="muted small">in your browser</span></span></div>
+            </figure>
+            <p class="scan-caption" id="scan-caption">Live, not a mock-up: the model runs on this sample leaf in your browser and draws its own heatmap.</p>
           </div>
         </section>
 
-        <details class="card hood" id="expert">
-          <summary><h2>For experts</h2><span id="faithbadge" class="chip"></span></summary>
-          <h3>Is the heatmap honest?</h3>
-          <p class="muted small">We hide the brightest 20% of the image and ask the model again, then do the same with a random 20%. If the heatmap is right, hiding the bright part should hurt the score much more.</p>
-          <div id="faithful" class="faithful"></div>
-          <div id="hoodbody"></div>
-        </details>
+        <div class="bento" id="tools">
+          <section class="card pick t-two-thirds t-tall" id="pick" aria-labelledby="pick-title" data-reveal>
+            <h2 id="pick-title">{{icon:camera}} Check a leaf</h2>
+            <p class="muted">Use one close-up photo of a single leaf. It is analysed on this device.</p>
+            <div class="buttons">
+              <label class="btn primary">
+                <input id="camera" type="file" accept="image/*" capture="environment" class="visually-hidden" />
+                {{icon:camera}} Take photo
+              </label>
+              <label class="btn">
+                <input id="gallery" type="file" accept="image/*" class="visually-hidden" />
+                {{icon:image-up}} Choose image
+              </label>
+            </div>
+            <p class="drop-zone" id="drop">or drop an image anywhere on this page</p>
+            <div class="samples" role="group" aria-labelledby="samples-label">
+              <p id="samples-label" class="muted small">No leaf to hand? Try a sample photo:</p>
+              <button type="button" class="sample" data-sample="./samples/tomato-early-blight-lab.jpg"><img src="./samples/tomato-early-blight-lab.jpg" alt="" width="44" height="44" loading="lazy" /><span>Tomato leaf<br /><small>lab photo</small></span></button>
+              <button type="button" class="sample" data-sample="./samples/apple-scab-lab.jpg"><img src="./samples/apple-scab-lab.jpg" alt="" width="44" height="44" loading="lazy" /><span>Apple leaf<br /><small>lab photo</small></span></button>
+              <button type="button" class="sample" data-sample="./samples/corn-gray-leaf-spot-field.jpg"><img src="./samples/corn-gray-leaf-spot-field.jpg" alt="" width="44" height="44" loading="lazy" /><span>Corn leaf<br /><small>field photo</small></span></button>
+              <button type="button" class="sample" data-sample="./samples/cat-not-a-crop.jpg"><img src="./samples/cat-not-a-crop.jpg" alt="" width="44" height="44" loading="lazy" /><span>A cat<br /><small>not a crop</small></span></button>
+            </div>
+            <p id="status" class="status loading" role="status" aria-live="polite">Loading the model…</p>
+            <section id="banner" class="banner" hidden></section>
+            <details class="advanced">
+              <summary>Advanced: choose the model</summary>
+              <label class="modelpick small">Model
+                <select id="model" aria-describedby="modelnote"></select>
+              </label>
+              <p id="modelnote" class="muted small"></p>
+            </details>
+          </section>
 
-        <p class="center"><button class="btn" id="again" type="button">Check another leaf</button></p>
-      </div>
+          <section class="card ink t-third" aria-labelledby="how-title" data-reveal>
+            <span class="tile-icon">{{icon:leaf}}</span>
+            <h2 id="how-title">How it works</h2>
+            <ol class="steps-list">
+              <li><span><strong>Photograph one leaf</strong>Close up, in daylight, filling most of the frame.</span></li>
+              <li><span><strong>Wait a moment</strong>The check runs on this device, not on a server.</span></li>
+              <li><span><strong>Read the result</strong>The problem, where the model looked, and what to do next.</span></li>
+            </ol>
+          </section>
 
-      <section class="card" id="tips">
-        <h2>Tips for a good photo</h2>
-        <div class="dodont">
-          <div>
-            <h3 class="ok">Do</h3>
-            <ul>
-              <li>Photograph <b>one leaf</b>, filling most of the frame.</li>
-              <li>Pick a leaf that shows the problem clearly, top side up.</li>
-              <li>Use daylight or shade, with the leaf in sharp focus.</li>
-              <li>If you can, hold it against a plain background (a sheet of paper or your palm).</li>
-            </ul>
-          </div>
-          <div>
-            <h3 class="warn">Avoid</h3>
-            <ul>
-              <li>Whole plants, rows or fields, fruit, flowers or stems.</li>
-              <li>Blurry, very dark or very bright photos, harsh shadows.</li>
-              <li>Several overlapping leaves or lots of soil in view.</li>
-              <li>Crops that are not in the list above: the model will still guess one of its classes.</li>
-            </ul>
-          </div>
+          <section class="card tinted t-third" aria-labelledby="private-title" data-reveal>
+            <span class="tile-icon">{{icon:shield}}</span>
+            <h2 id="private-title">Private by design</h2>
+            <p>The model and the heatmap run inside your browser, and nothing you check is sent anywhere. No accounts, no analytics. After the first visit it works offline. <a href="./privacy.html">Privacy</a></p>
+          </section>
         </div>
-        <p class="muted small">Why this matters: the model learned from lab photos of single leaves on plain backgrounds, and is much less accurate on busy field photos (<a href="./explain.html#field-gap">see why</a>).</p>
-      </section>
+
+        <div id="result" hidden>
+          <div class="result-grid">
+            <section class="card verdict" id="verdict" aria-live="polite"></section>
+            <section class="card" id="remedy"></section>
+          </div>
+
+          <section class="card" id="why" aria-labelledby="why-title">
+            <h2 id="why-title">Why the model thinks so</h2>
+            <div class="grid">
+              <div>
+                <figure class="viewer">
+                  <canvas id="overlay" role="img" aria-label="Your leaf photo with the model's heatmap on top"></canvas>
+                  <figcaption>
+                    <div class="legend"><span>ignored</span><i id="legend"></i><span>most important</span></div>
+                  </figcaption>
+                </figure>
+                <label class="slider">Heatmap strength
+                  <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.6" />
+                </label>
+              </div>
+              <div>
+                <p class="lead-in">The coloured area is what the model looked at. Check that it is on the leaf and shows these signs:</p>
+                <ul id="lookfor" class="ticks"></ul>
+                <p class="muted small">If the colour sits on the background, soil or your hand, don't trust the result.</p>
+                <div class="classpick" id="classpick" role="group" aria-label="Show evidence for"></div>
+                <p class="muted small" id="heatnote"></p>
+              </div>
+            </div>
+          </section>
+
+          <details class="card hood" id="expert">
+            <summary><h2>For experts</h2><span id="faithbadge" class="chip"></span></summary>
+            <h3>Is the heatmap honest?</h3>
+            <p class="muted small">We hide the brightest 20% of the image and ask the model again, then do the same with a random 20%. If the heatmap is right, hiding the bright part should hurt the score much more.</p>
+            <div id="faithful" class="faithful"></div>
+            <div id="hoodbody"></div>
+          </details>
+
+          <p class="center"><button class="btn" id="again" type="button">{{icon:camera}} Check another leaf</button></p>
+        </div>
+
+        <div class="section-title"><h2>What it can check</h2><a href="./about.html#limits">Limits and scope</a></div>
+        <div class="bento">
+          <section class="card t-two-thirds" id="supported" aria-label="Supported crops" data-reveal>
+            <p class="muted">Loading the list of crops…</p>
+            <span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:55%"></span><span class="skeleton" style="width:62%"></span>
+          </section>
+          <section class="card t-third lift" aria-labelledby="explains-title" data-reveal>
+            <span class="tile-icon heat">{{icon:scan}}</span>
+            <h2 id="explains-title">Explains every answer</h2>
+            <ul>
+              <li>A Grad-CAM++ heatmap of where it looked</li>
+              <li>A live test of whether that heatmap is honest</li>
+              <li>An exact breakdown of the score</li>
+            </ul>
+            <p><a href="./explain.html">How the explanations work</a></p>
+          </section>
+        </div>
+
+        <section class="card" id="tips" aria-labelledby="tips-title" data-reveal>
+          <h2 id="tips-title">Tips for a good photo</h2>
+          <div class="dodont">
+            <div>
+              <h3 class="ok">{{icon:check}} Do</h3>
+              <ul>
+                <li>Photograph <b>one leaf</b>, filling most of the frame.</li>
+                <li>Pick a leaf that shows the problem clearly, top side up.</li>
+                <li>Use daylight or shade, with the leaf in sharp focus.</li>
+                <li>If you can, hold it against a plain background (a sheet of paper or your palm).</li>
+              </ul>
+            </div>
+            <div>
+              <h3 class="warn">{{icon:alert}} Avoid</h3>
+              <ul>
+                <li>Whole plants, rows or fields, fruit, flowers or stems.</li>
+                <li>Blurry, very dark or very bright photos, harsh shadows.</li>
+                <li>Several overlapping leaves or lots of soil in view.</li>
+                <li>Crops that are not in the list above: the model will still guess one of its classes.</li>
+              </ul>
+            </div>
+          </div>
+          <p class="muted small">Why this matters: the model learned from lab photos of single leaves on plain backgrounds, and is much less accurate on busy field photos (<a href="./explain.html#field-gap">see why</a>).</p>
+        </section>
+      </div>
     </main>
 
-    <footer class="muted small">
-      <p id="modelinfo"></p>
-      <p>Research prototype. Not a substitute for a local agronomist or extension officer. Remedies are general guidance and have not been reviewed by a plant pathologist. <a href="./about.html#limits">Limitations</a></p>
-    </footer>
+    <!--@footer diagnose-->
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

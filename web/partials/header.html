@@ -1,0 +1,36 @@
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header" data-header>
+  <div class="wrap header-inner">
+    <a class="brand" href="./" aria-label="CropXAI home">
+      <svg class="brand-mark" viewBox="0 0 64 64" width="34" height="34" aria-hidden="true" focusable="false">
+        <rect width="64" height="64" rx="16" fill="#0f2418" />
+        <path d="M14 50C14 29 28 14 51 12c-1 23-15 38-37 38z" fill="#2f9a5a" />
+        <path d="M14 50 39 25" stroke="#0f2418" stroke-width="3.2" stroke-linecap="round" />
+        <circle cx="37.5" cy="30.5" r="8" fill="#f98e09" />
+        <circle cx="37.5" cy="30.5" r="3.6" fill="#fcffa4" />
+      </svg>
+      <span class="brand-name">CropXAI</span>
+    </a>
+
+    <nav class="site-nav" id="site-nav" aria-label="Main">
+      <ul class="nav-list" role="list">
+        <li><a href="./" data-nav="diagnose">{{icon:scan}}<span>Diagnose</span></a></li>
+        <li><a href="./explain.html" data-nav="explain">{{icon:microscope}}<span>Explainability</span></a></li>
+        <li><a href="./results.html" data-nav="results">{{icon:chart}}<span>Results</span></a></li>
+        <li><a href="./about.html" data-nav="about">{{icon:info}}<span>About</span></a></li>
+      </ul>
+      <span class="nav-indicator" aria-hidden="true"></span>
+    </nav>
+
+    <div class="header-tools">
+      {{net}}
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Theme: follows your device. Switch to light">
+        {{icon:sun}}{{icon:moon}}
+      </button>
+      <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="Open menu">
+        {{icon:menu}}{{icon:x}}
+      </button>
+    </div>
+  </div>
+  <div class="scroll-progress" aria-hidden="true"><i></i></div>
+</header>

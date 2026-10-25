@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { fileURLToPath } from 'node:url';
 
-const PHOTO = new URL('../test/fixtures/photo.png', import.meta.url).pathname;
+const PHOTO = fileURLToPath(new URL('../test/fixtures/photo.png', import.meta.url)); // .pathname breaks on Windows
 
 async function ready(page) {
   await page.goto('./');

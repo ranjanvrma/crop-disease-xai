@@ -3,75 +3,96 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>CropXAI · Results</title>
-    <meta name="description" content="Measured accuracy, size, calibration, explanation quality and stability of every model." />
-    <meta name="theme-color" content="#1f5130" />
+    <title>CropXAI results: accuracy, size, calibration and explanation quality</title>
+    <meta name="description" content="Measured results for every CropXAI model: lab and field accuracy, model size, calibration, heatmap faithfulness and heatmap stability under pruning and INT8 compression." />
+    <link rel="canonical" href="https://crop-disease-xai.onrender.com/results.html" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="CropXAI" />
+    <meta property="og:title" content="CropXAI results" />
+    <meta property="og:description" content="Accuracy on lab and field photos, size, calibration and explanation quality of every model, read from the experiment output files." />
+    <meta property="og:url" content="https://crop-disease-xai.onrender.com/results.html" />
+    <meta property="og:image" content="https://crop-disease-xai.onrender.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#f4f2e9" />
     <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./favicon.ico" sizes="32x32" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <script src="./theme-init.js"></script>
     <link rel="stylesheet" href="./src/style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Diagnose", "item": "https://crop-disease-xai.onrender.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Results", "item": "https://crop-disease-xai.onrender.com/results.html" }
+        ]
+      }
+    </script>
   </head>
   <body data-page="results">
-    <header class="top">
-      <div class="brand">
-        <img src="./icons/icon.svg" alt="" width="32" height="32" />
-        <h1>CropXAI</h1>
+    <!--@header results-->
+
+    <main id="main" class="prose" tabindex="-1">
+      <div class="wrap">
+        <header class="page-head">
+          <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="./">Diagnose</a></li><li><span aria-current="page">Results</span></li></ol></nav>
+          <p class="eyebrow-tag">{{icon:chart}} Measured, not estimated</p>
+          <h1 data-reveal>Results</h1>
+          <p class="lede" data-reveal>How accurate, small and well calibrated each model is, measured on photos it never saw in training.</p>
+        </header>
+
+        <div class="bento keypoints" id="keypoints" aria-live="polite">
+          <section class="card t-third skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
+          <section class="card t-third skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
+          <section class="card t-third skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
+        </div>
+
+        <div class="bento">
+          <section class="card t-two-thirds" aria-labelledby="gap-title" data-reveal>
+            <h2 id="gap-title">Lab photos vs. real field photos</h2>
+            <p class="muted small">Top-1 accuracy on the held-out PlantVillage lab test set and on PlantDoc field photos (strict: all 38 classes allowed).</p>
+            <div id="gapchart" class="chart"></div>
+          </section>
+          <section class="card tinted t-third" aria-labelledby="source-title" data-reveal>
+            <span class="tile-icon">{{icon:file-text}}</span>
+            <h2 id="source-title">Where the numbers come from</h2>
+            <p>Every number on this page is read from the experiment output files (<code>results/tables/</code>, built from the per-run JSON files).
+              Values are the mean ± standard deviation over 3 training seeds; <em>(n=1)</em> marks a single run.</p>
+            <p id="datasets" class="muted small"></p>
+          </section>
+        </div>
+
+        <section class="card" aria-labelledby="t1-title" data-reveal>
+          <h2 id="t1-title">Table 1 · Accuracy, size, calibration and speed</h2>
+          <p class="muted small">ECE = expected calibration error (lower is better: confidence matches how often the model is right).
+            Field "restricted" only allows the classes that occur in the field set. INT8 latency is not measured on desktop
+            (it is a phone measurement). The highlighted row is the model the app uses by default.</p>
+          <details class="more"><summary>Show the full table</summary><div id="table1" class="tablewrap" tabindex="0" role="region" aria-label="Table 1: accuracy, size, calibration and speed"></div></details>
+        </section>
+
+        <section class="card" aria-labelledby="t2-title" data-reveal>
+          <h2 id="t2-title">Table 2 · Explanation quality</h2>
+          <p class="muted small">Faithfulness of each heatmap method (↓ lower is better, ↑ higher is better), on 300 lab test images
+            and 300 field images (Score-CAM on 50). Pointing game and IoU need lesion masks, which do not exist yet, so they show "—".
+            Compare faithfulness only between models of similar accuracy: a much less confident model has a lower deletion AUC without being more faithful.
+            See <a href="./explain.html#faithful">Explainability</a> for what each metric means.</p>
+          <details class="more"><summary>Show the full table</summary><div id="table2" class="tablewrap" tabindex="0" role="region" aria-label="Table 2: explanation quality"></div></details>
+        </section>
+
+        <section class="card" aria-labelledby="t3-title" data-reveal>
+          <h2 id="t3-title">Table 3 · Heatmap stability under compression</h2>
+          <p class="muted small">How similar each compressed model's heatmap is to the uncompressed parent's (mnv3_fe) on the same images,
+            for the class the parent predicts. 1 = identical.</p>
+          <details class="more"><summary>Show the full table</summary><div id="table3" class="tablewrap" tabindex="0" role="region" aria-label="Table 3: heatmap stability under compression"></div></details>
+        </section>
       </div>
-      <nav class="nav" aria-label="Pages">
-        <a href="./">Diagnose</a>
-        <a href="./explain.html">Explainability</a>
-        <a href="./results.html" aria-current="page">Results</a>
-        <a href="./about.html">About</a>
-      </nav>
-    </header>
-
-    <main class="prose">
-      <section class="hero">
-        <h2>Results</h2>
-        <p>How accurate, small and fast each model is, measured on photos it never saw in training.</p>
-      </section>
-
-      <div class="keypoints" id="keypoints"></div>
-
-      <section class="card">
-        <h2>Where the numbers come from</h2>
-        <p>Every number on this page is read from the experiment output files (<code>results/tables/</code>, built from the per-run JSON files).
-          Values are the mean ± standard deviation over 3 training seeds; <em>(n=1)</em> marks a single run.</p>
-        <p id="datasets" class="muted small"></p>
-      </section>
-
-      <section class="card">
-        <h2>Lab photos vs. real field photos</h2>
-        <p class="muted small">Top-1 accuracy on the held-out PlantVillage lab test set and on PlantDoc field photos (strict: all 38 classes allowed).</p>
-        <div id="gapchart" class="chart"></div>
-      </section>
-
-      <section class="card">
-        <h2>Table 1 · Accuracy, size, calibration and speed</h2>
-        <p class="muted small">ECE = expected calibration error (lower is better: confidence matches how often the model is right).
-          Field "restricted" only allows the classes that occur in the field set. INT8 latency is not measured on desktop
-          (it is a phone measurement). The highlighted row is the model the app uses by default.</p>
-        <details class="more"><summary>Show the full table</summary><div id="table1" class="tablewrap"></div></details>
-      </section>
-
-      <section class="card">
-        <h2>Table 2 · Explanation quality</h2>
-        <p class="muted small">Faithfulness of each heatmap method (↓ lower is better, ↑ higher is better), on 300 lab test images
-          and 300 field images (Score-CAM on 50). Pointing game and IoU need lesion masks, which do not exist yet, so they show "—".
-          See <a href="./explain.html">Explainability</a> for what each metric means.</p>
-        <details class="more"><summary>Show the full table</summary><div id="table2" class="tablewrap"></div></details>
-      </section>
-
-      <section class="card">
-        <h2>Table 3 · Heatmap stability under compression</h2>
-        <p class="muted small">How similar each compressed model's heatmap is to the uncompressed parent's (mnv3_fe) on the same images,
-          for the class the parent predicts. 1 = identical.</p>
-        <details class="more"><summary>Show the full table</summary><div id="table3" class="tablewrap"></div></details>
-      </section>
     </main>
 
-    <footer class="muted small">
-      <p>Research prototype. Not a substitute for a local agronomist or extension officer.</p>
-    </footer>
+    <!--@footer results-->
     <script type="module" src="./src/pages.js"></script>
   </body>
 </html>

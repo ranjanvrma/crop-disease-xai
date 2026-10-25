@@ -2,6 +2,8 @@
 // public/data/site.json (scripts/export_site_data.py, which reads results/tables/
 // and results/metrics/) or from the default model's remedies.json; none is typed here.
 
+import { countUp, enter, growBars } from './ui.js';
+
 const $ = (id) => document.getElementById(id);
 const page = document.body.dataset.page;
 
@@ -69,6 +71,7 @@ function barChart(el, rows, series, { max, unit = '', digits = 1 } = {}) {
   }
   const legend = series.map((s, i) => `<rect x="${labelW + i * 170 - 120}" y="${h - 18}" width="12" height="12" rx="2" class="${s.cls}" /><text x="${labelW + 18 + i * 170 - 120}" y="${h - 8}" class="lbl">${esc(s.name)}</text>`).join('');
   el.innerHTML = `<svg viewBox="0 0 ${labelW + plotW + right} ${h}" role="img" aria-label="${esc(series.map((s) => s.name).join(' vs '))}">${body}${legend}</svg>`;
+  growBars(el);
 }
 
 // ---------- pages ----------
@@ -90,7 +93,10 @@ const name = (run) => LABELS[run] ?? run;
 const APP_MODEL = 'mnv3_ft_field';
 
 function keypoints(items) {
-  $('keypoints').innerHTML = items.map(([big, text]) => `<section class="card"><p class="big">${esc(big)}</p><p>${text}</p></section>`).join('');
+  const el = $('keypoints');
+  el.innerHTML = items.map(([big, text]) => `<section class="card t-third"><p class="big">${esc(big)}</p><p>${text}</p></section>`).join('');
+  el.querySelectorAll('.big').forEach(countUp);
+  enter([...el.children]);
 }
 
 function gapChart(el, t1) {
@@ -235,14 +241,24 @@ async function about() {
     </details>`).join('');
   $('remedyfilter').addEventListener('input', (e) => {
     const q = e.target.value.trim().toLowerCase();
-    for (const d of document.querySelectorAll('.remedy')) d.hidden = !!q && !q.split(/\s+/).every((w) => d.dataset.search.includes(w));
+    let shown = 0;
+    for (const d of document.querySelectorAll('.remedy')) {
+      d.hidden = !!q && !q.split(/\s+/).every((w) => d.dataset.search.includes(w));
+      if (!d.hidden) shown++;
+    }
+    const empty = $('remedyempty');
+    empty.hidden = shown > 0;
+    empty.textContent = shown ? '' : `No crop or disease matches "${e.target.value.trim()}". Try a crop name such as tomato or potato.`;
   });
 }
 
 const pages = { results, explain, about };
 pages[page]?.().catch((err) => {
   const main = document.querySelector('main');
-  main.insertAdjacentHTML('afterbegin', `<p class="banner danger">Could not load the results (${esc(err.message)}). Run scripts/export_site_data.py.</p>`);
+  console.error('Site data failed to load; run scripts/export_site_data.py', err);
+  const target = main.querySelector('.wrap') ?? main;
+  target.insertAdjacentHTML('afterbegin', `<p class="banner danger" role="alert">Could not load the results (${esc(err.message)}). Check your connection and reload the page.</p>`);
+  for (const sk of document.querySelectorAll('.skeleton-card')) sk.remove();
 });
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
