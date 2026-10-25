@@ -100,7 +100,10 @@ These have been followed since day one. Keep them.
 7. **Never hand-edit `notebooks/colab_bootstrap.ipynb`.** Edit `notebooks/build_colab_notebook.py`
    and run it (`python notebooks/build_colab_notebook.py`).
 8. **No AI-assistant attribution in the repository:** no `Co-Authored-By` or "generated with" trailers
-   in commits, and no such mentions in code or docs.
+   in commits, and no such mentions in code or docs. This is enforced automatically:
+   `scripts/check_names.py` runs as git hooks (staged changes, file names, commit messages) and as
+   the `name-check` GitHub Action on every push. **Turn the hooks on once per clone:**
+   `git config core.hooksPath .githooks`
 9. **Keep it compute-lean.** Any new GPU work must state its estimated cost first. Don't reintroduce
    the dropped models (§12) without a reason and a budget.
 10. Research (`research/`, `notebooks/`) and the showcase (`web/`, if built) stay separate; both read

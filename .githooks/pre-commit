@@ -1,0 +1,10 @@
+#!/bin/sh
+# Refuse commits whose staged changes or file names contain blocked names.
+# Use the first Python that really runs (the project venv first; skips the Windows Store stub).
+for PY in .venv/Scripts/python .venv/bin/python python3 python py; do
+  if "$PY" -c "import sys" >/dev/null 2>&1; then
+    exec "$PY" scripts/check_names.py --staged
+  fi
+done
+echo "name check: no working Python found; install Python or run: git config --unset core.hooksPath" >&2
+exit 1
