@@ -13,3 +13,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+    routes:
+      # Render does not serve index.html for "/" on this site, so map it explicitly
+      # (the service worker also precaches "./").
+      - type: rewrite
+        source: /
+        destination: /index.html
