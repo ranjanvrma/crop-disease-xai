@@ -13,7 +13,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
-  <body>
+  <body data-page="diagnose">
     <header class="top">
       <div class="brand">
         <img src="./icons/icon.svg" alt="" width="32" height="32" />
@@ -29,11 +29,18 @@
     </header>
 
     <main>
-      <section id="banner" class="banner" hidden></section>
+      <section class="hero">
+        <h2>Is your crop sick?</h2>
+        <p>Check a leaf in seconds, see <em>why</em> the model decided, and get advice on what to do.</p>
+        <ol class="howto">
+          <li><b>1</b><span><strong>Photograph one leaf</strong>Close up, in daylight, filling most of the frame.</span></li>
+          <li><b>2</b><span><strong>Wait a moment</strong>The check runs on this device. Your photo is never uploaded.</span></li>
+          <li><b>3</b><span><strong>Read the result</strong>The problem, where the model looked, and what to do next.</span></li>
+        </ol>
+      </section>
 
       <section class="card pick" id="pick">
         <h2>Check a leaf</h2>
-        <p class="muted">Photograph one leaf, filling most of the frame, in daylight. Everything runs on this device; no photo leaves it.</p>
         <div class="buttons">
           <label class="btn primary">
             <input id="camera" type="file" accept="image/*" capture="environment" hidden />
@@ -44,47 +51,52 @@
             Choose image
           </label>
         </div>
-        <p class="drop muted" id="drop">or drop an image here</p>
-        <label class="modelpick small">Model
-          <select id="model" aria-describedby="modelnote"></select>
-        </label>
-        <p id="modelnote" class="muted small"></p>
+        <p class="drop muted" id="drop">or drop an image anywhere on this page</p>
         <p id="status" class="status" role="status" aria-live="polite">Loading the model…</p>
+        <section id="banner" class="banner" hidden></section>
+        <details class="advanced">
+          <summary>Advanced: choose the model</summary>
+          <label class="modelpick small">Model
+            <select id="model" aria-describedby="modelnote"></select>
+          </label>
+          <p id="modelnote" class="muted small"></p>
+        </details>
       </section>
 
       <div id="result" hidden>
         <section class="card verdict" id="verdict" aria-live="polite"></section>
 
-        <div class="grid">
-          <section class="card">
-            <h2>Where the model looked</h2>
-            <figure class="viewer">
-              <canvas id="overlay" aria-label="Leaf photo with heatmap"></canvas>
-              <figcaption>
-                <div class="legend"><span>low</span><i id="legend"></i><span>high</span></div>
-              </figcaption>
-            </figure>
-            <label class="slider">Heatmap strength
-              <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.6" />
-            </label>
-            <div class="classpick" id="classpick" role="group" aria-label="Show evidence for"></div>
-            <p class="muted small" id="heatnote"></p>
-          </section>
-
-          <section class="card">
-            <h2>Check it yourself</h2>
-            <p class="muted small">Does the bright area show these signs? If the model looked at the background, soil, or your hand, don't trust the result.</p>
-            <ul id="lookfor" class="ticks"></ul>
-            <h3>Is the heatmap honest?</h3>
-            <p class="muted small">We hide the brightest 20% of the image and ask the model again, then do the same with a random 20%. If the heatmap is right, hiding the bright part should hurt the score much more.</p>
-            <div id="faithful" class="faithful"></div>
-          </section>
-        </div>
-
         <section class="card" id="remedy"></section>
 
-        <details class="card hood" id="hood">
-          <summary><h2>Under the hood</h2></summary>
+        <section class="card">
+          <h2>Why the model thinks so</h2>
+          <div class="grid">
+            <div>
+              <figure class="viewer">
+                <canvas id="overlay" aria-label="Leaf photo with heatmap"></canvas>
+                <figcaption>
+                  <div class="legend"><span>ignored</span><i id="legend"></i><span>most important</span></div>
+                </figcaption>
+              </figure>
+              <label class="slider">Heatmap strength
+                <input id="opacity" type="range" min="0" max="1" step="0.05" value="0.6" />
+              </label>
+            </div>
+            <div>
+              <p class="lead-in">The coloured area is what the model looked at. Check that it is on the leaf and shows these signs:</p>
+              <ul id="lookfor" class="ticks"></ul>
+              <p class="muted small">If the colour sits on the background, soil or your hand, don't trust the result.</p>
+              <div class="classpick" id="classpick" role="group" aria-label="Show evidence for"></div>
+              <p class="muted small" id="heatnote"></p>
+            </div>
+          </div>
+        </section>
+
+        <details class="card hood" id="expert">
+          <summary><h2>For experts</h2><span id="faithbadge" class="chip"></span></summary>
+          <h3>Is the heatmap honest?</h3>
+          <p class="muted small">We hide the brightest 20% of the image and ask the model again, then do the same with a random 20%. If the heatmap is right, hiding the bright part should hurt the score much more.</p>
+          <div id="faithful" class="faithful"></div>
           <div id="hoodbody"></div>
         </details>
 

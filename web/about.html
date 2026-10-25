@@ -25,8 +25,13 @@
     </header>
 
     <main class="prose">
-      <section class="card">
+      <section class="hero">
         <h2>About CropXAI</h2>
+        <p>A leaf-disease checker that shows its reasoning, built as a research project on explainable AI.</p>
+      </section>
+
+      <section class="card">
+        <h2>What it is</h2>
         <p>CropXAI recognises 38 leaf conditions across 14 crops from one photo, shows <b>where</b> the model looked and <b>whether that
           explanation is honest</b>, and suggests what to do. It is a research prototype built around one question:
           <em>can a small model that runs on a phone still explain its decisions faithfully?</em></p>
@@ -54,6 +59,16 @@
         <p class="note small" id="remedynote"></p>
         <label class="search small">Find a crop or disease <input id="remedyfilter" type="search" placeholder="e.g. tomato, blight" /></label>
         <div id="remedylist"></div>
+      </section>
+      <section class="card" id="credits">
+        <h2>Photo credits</h2>
+        <ul class="small">
+          <li>Diagnose: <a href="https://commons.wikimedia.org/wiki/File:Green_landscape_with_opaque_paddy_fields_and_cloudy_blue_sky_in_Laos_(HDR).jpg">Paddy fields in Laos</a>, Basile Morin, CC BY-SA 4.0</li>
+          <li>Explainability: <a href="https://commons.wikimedia.org/wiki/File:Green_rice_sheaves_planted_in_a_paddy_field_with_long_shadows_at_golden_hour_in_Don_Det_Laos.jpg">Rice seedlings at golden hour</a>, Basile Morin, CC BY-SA 4.0</li>
+          <li>Results: <a href="https://commons.wikimedia.org/wiki/File:Wheat_field_(1).jpg">Wheat field</a>, Leon Brooks, public domain</li>
+          <li>About: <a href="https://commons.wikimedia.org/wiki/File:Darjeeling,_India,_Tea_plantations_on_hills.jpg">Tea plantations, Darjeeling</a>, Vyacheslav Argenberg, CC BY 4.0</li>
+        </ul>
+        <p class="muted small">Photos via Wikimedia Commons, resized. Leaf images in the app's results come from the PlantVillage and PlantDoc datasets.</p>
       </section>
     </main>
 

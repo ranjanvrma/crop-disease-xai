@@ -221,3 +221,87 @@ section[id] { scroll-margin-top: 120px; }
 .remedy summary { cursor: pointer; min-height: 32px; }
 .remedy h4 { margin: 0.6rem 0 0.2rem; font-size: 0.9rem; }
 .remedy ul { font-size: 0.9rem; }
+
+/* ---------- nature theme: photo backgrounds, glass cards, more room ---------- */
+
+:root { --glass: rgb(255 255 255 / 0.86); --veil-top: rgb(12 32 18 / 0.45); --veil-bottom: rgb(246 244 236 / 0.90); --hero-ink: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root { --glass: rgb(24 30 25 / 0.86); --veil-top: rgb(6 12 8 / 0.45); --veil-bottom: rgb(14 18 15 / 0.92); }
+}
+
+html { background: var(--bg); }
+body { background: transparent; line-height: 1.6; }
+body::before, body::after { content: ""; position: fixed; inset: 0; pointer-events: none; }
+body::before { z-index: -2; background: var(--photo, none) center / cover no-repeat; }
+body::after { z-index: -1; background: linear-gradient(180deg, var(--veil-top) 0, var(--veil-top) 260px, var(--veil-bottom) 640px); }
+body[data-page="diagnose"] { --photo: url("/bg/diagnose.jpg"); }
+body[data-page="explain"] { --photo: url("/bg/explain.jpg"); }
+body[data-page="results"] { --photo: url("/bg/results.jpg"); }
+body[data-page="about"] { --photo: url("/bg/about.jpg"); }
+
+.top { background: rgb(22 58 34 / 0.82); color: #fff; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.top .nav a { color: #fff; }
+.top .brand h1 { color: #fff; }
+
+main { max-width: 1040px; padding: 8px 16px 48px; }
+footer { max-width: 1040px; }
+footer p { background: var(--glass); display: inline-block; padding: 4px 10px; border-radius: 8px; margin: 4px 0; }
+
+.card {
+  background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgb(255 255 255 / 0.35); border-radius: 20px; padding: 24px; margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.08);
+}
+@media (min-width: 760px) { .card { padding: 28px 32px; } }
+.card > h2 { font-size: 1.3rem; margin-bottom: 0.75rem; }
+.card p { margin: 0 0 0.9rem; }
+.grid { gap: 28px; }
+#result > .card, .grid > div { min-width: 0; }
+#result > .card { scroll-margin-top: 130px; }
+
+/* hero: big friendly title straight on the photo */
+.hero { color: var(--hero-ink); padding: 40px 4px 28px; text-shadow: 0 2px 12px rgb(0 0 0 / 0.45); }
+.hero h2 { font-size: clamp(1.8rem, 5vw, 2.8rem); margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+.hero > p { font-size: clamp(1.02rem, 2.4vw, 1.2rem); max-width: 46ch; margin: 0 0 1.5rem; }
+.hero a { color: #fff; }
+
+.howto { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; grid-template-columns: 1fr; text-shadow: none; }
+@media (min-width: 760px) { .howto { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
+.howto li {
+  display: flex; gap: 14px; align-items: flex-start; margin: 0; padding: 16px 18px; border-radius: 16px;
+  background: var(--glass); color: var(--ink); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.howto b {
+  flex: 0 0 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand); color: var(--brand-ink); font-size: 1rem;
+}
+.howto strong { display: block; }
+.howto span { font-size: 0.92rem; color: var(--muted); }
+.howto span strong { color: var(--ink); font-size: 1rem; }
+
+.pick .buttons { margin: 4px 0 8px; }
+.pick .banner { margin: 16px 0 0; }
+.advanced { margin-top: 16px; font-size: 0.9rem; }
+.advanced summary { cursor: pointer; color: var(--muted); min-height: 36px; display: flex; align-items: center; }
+.lead-in { font-weight: 600; }
+.legend span { white-space: nowrap; }
+
+.hood summary { gap: 12px; flex-wrap: wrap; }
+.hood summary .chip { text-transform: none; }
+.chip.ok { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+.chip.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
+.hood summary::after { content: "Show details"; }
+.hood[open] summary::after { content: "Hide details"; }
+
+/* key points (Explainability / Results) */
+.keypoints { display: grid; gap: 16px; grid-template-columns: 1fr; margin-bottom: 24px; }
+@media (min-width: 760px) { .keypoints { grid-template-columns: repeat(3, 1fr); } }
+.keypoints .card { margin: 0; }
+.keypoints .big { font-size: 2rem; font-weight: 800; line-height: 1.1; color: var(--brand); margin: 0 0 0.35rem; }
+.keypoints p { margin: 0; }
+
+details.more { margin-top: 12px; }
+details.more > summary { cursor: pointer; font-weight: 600; color: var(--brand); min-height: 44px; display: flex; align-items: center; }
+.toc { padding-left: 1.2rem; }
+.toc li { margin: 0.3rem 0; }
+.prose > .card + .card { margin-top: 0; }

@@ -89,6 +89,10 @@ const LABELS = {
 const name = (run) => LABELS[run] ?? run;
 const APP_MODEL = 'mnv3_ft_field';
 
+function keypoints(items) {
+  $('keypoints').innerHTML = items.map(([big, text]) => `<section class="card"><p class="big">${esc(big)}</p><p>${text}</p></section>`).join('');
+}
+
 function gapChart(el, t1) {
   const runs = t1.rows.map((r) => r[0]);
   barChart(el, runs.map((run) => ({
@@ -101,6 +105,12 @@ async function results() {
   const site = await json('./data/site.json');
   const { table1_accuracy: t1, table2_explanation: t2, table3_stability: t3 } = site.tables;
   $('datasets').textContent = `Lab test set: ${site.field.test_n.toLocaleString()} PlantVillage images never used in training. Field test set: ${site.field.field_n.toLocaleString()} PlantDoc photos covering ${site.field.field_classes} of the 38 classes, never used for training or tuning.`;
+  const v = (run, col) => cell(t1, [run], col);
+  keypoints([
+    [`${fmt(v(APP_MODEL, 'Top-1 PV test (%)'))}%`, 'correct on held-out <b>lab photos</b> (the default model in the app).'],
+    [`${fmt(v(APP_MODEL, 'Field top-1 strict (%)'))}%`, 'correct on <b>real field photos</b>: the open problem, explained on the <a href="./explain.html#field-gap">Explainability</a> page.'],
+    [`${fmt(v('mnv3_fe_int8', 'Weights (MB)'), 1)} MB`, `INT8 model, ${Math.round(v('mnv3_fe', 'Weights (MB)').mean / v('mnv3_fe_int8', 'Weights (MB)').mean)}× smaller than its parent, still ${fmt(v('mnv3_fe_int8', 'Top-1 PV test (%)'))}% on lab photos.`],
+  ]);
   gapChart($('gapchart'), t1);
   renderTable($('table1'), t1, APP_MODEL);
   renderTable($('table2'), t2, APP_MODEL);
@@ -110,6 +120,13 @@ async function results() {
 async function explain() {
   const site = await json('./data/site.json');
   const { table1_accuracy: t1, table2_explanation: t2, table3_stability: t3 } = site.tables;
+
+  const worst = Math.max(...site.closed_form.map((r) => r.max_abs_diff));
+  keypoints([
+    ['1 pass', `The heatmap is computed <b>in your browser</b> from a single forward pass, and matches the standard library exactly (largest difference about ${worst.toExponential(0)}).`],
+    [fmt(cell(t3, ['mnv3_fe_int8'], 'Spearman ↑ (test)'), 2), 'similarity of heatmaps after <b>INT8 compression</b> (1 = identical). Pruning changes them far more.'],
+    [`${fmt(cell(t1, [APP_MODEL], 'Top-1 PV test (%)'), 0)}% → ${fmt(cell(t1, [APP_MODEL], 'Field top-1 strict (%)'), 0)}%`, 'lab vs. field accuracy. The heatmaps help explain why: <a href="#field-gap">the background shortcut</a>.'],
+  ]);
 
   // 2. closed form vs library
   $('closedform').innerHTML = `

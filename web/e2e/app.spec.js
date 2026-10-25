@@ -33,7 +33,7 @@ test('diagnoses a photo and explains it on the device', async ({ page }, info) =
   await page.locator('#classpick .pill').nth(1).click();
   await expect(page.locator('#heatnote')).toContainText('instead of the top answer');
 
-  await page.locator('#hood summary').click();
+  await page.locator('#expert summary').click();
   await expect(page.locator('#hoodbody')).toContainText('this split is exact');
   await expect(page.locator('#hoodbody canvas[data-channel]')).toHaveCount(6);
   await noSideScroll(page);

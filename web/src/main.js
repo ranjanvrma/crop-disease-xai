@@ -51,10 +51,10 @@ function showModelInfo() {
     banner.innerHTML = '<strong>Demo model.</strong> This build uses an untrained model, so every diagnosis is meaningless. It only shows how the app works.';
   } else if (acc) {
     banner.className = 'banner';
-    banner.innerHTML = `<strong>Lab-trained model.</strong> In testing it was right ${pct(acc.test_top1)} of the time on lab photos but only ${pct(acc.field_strict_top1)} on ${acc.field_n} real field photos (this seed). Use the heatmap and the checklist to judge each result. <a href="./explain.html#field-gap">Why the gap?</a>`;
+    banner.innerHTML = `<strong>Works best on close-up photos of one leaf.</strong> Right ${pct(acc.test_top1)} of the time on lab photos, but only ${pct(acc.field_strict_top1)} on real field photos, so always check the heatmap. <a href="./explain.html#field-gap">Why?</a>`;
   } else {
     banner.className = 'banner';
-    banner.innerHTML = '<strong>Lab-trained model.</strong> Its accuracy on real field photos has not been measured for this build. Use the heatmap and the checklist to judge each result.';
+    banner.innerHTML = '<strong>Works best on close-up photos of one leaf.</strong> Its accuracy on real field photos has not been measured for this model, so always check the heatmap.';
   }
   banner.hidden = false;
   $('modelinfo').textContent = `Model: ${m.arch} (${m.run_name}, seed ${m.seed}, commit ${m.git_commit})${m.demo ? ', demo' : ''}. Loaded in ${Math.round(bundle.loadMs)} ms.`;
@@ -259,6 +259,8 @@ function renderRemedy() {
 
 async function faithfulnessCheck() {
   const el = $('faithful');
+  $('faithbadge').textContent = 'Heatmap check: running…';
+  $('faithbadge').className = 'chip';
   el.innerHTML = '<p class="muted small">Running the check…</p>';
   const s = bundle.meta.image_size;
   const cls = current.ranked[0][0];
@@ -271,6 +273,8 @@ async function faithfulnessCheck() {
   const dropTop = p - pTop;
   const dropRand = p - pRand;
   const passes = dropTop > dropRand + 0.05;
+  $('faithbadge').textContent = `Heatmap check: ${passes ? 'passes' : 'doubtful'}`;
+  $('faithbadge').className = `chip ${passes ? 'ok' : 'warn'}`;
   el.innerHTML = `
     <div class="pair">
       <figure><canvas id="hidTop"></canvas><figcaption>Bright 20% hidden<br><strong>${pct(pTop)}</strong></figcaption></figure>

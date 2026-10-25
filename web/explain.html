@@ -25,21 +25,25 @@
     </header>
 
     <main class="prose">
-      <section class="card">
+      <section class="hero">
         <h2>How the model explains itself</h2>
-        <p>A diagnosis alone is not enough: a farmer, or an examiner, needs to see <em>why</em> the model said it. For every photo the app
-          draws a heatmap of the regions that pushed the model towards its answer, then tests whether that heatmap is honest.
-          This page explains the methods, the checks, and what they revealed about the models.</p>
+        <p>A diagnosis is only useful if you can see why it was made. Here is how the heatmaps work, how we test that they are honest, and what they revealed.</p>
+      </section>
+
+      <div class="keypoints" id="keypoints"></div>
+
+      <nav class="card" aria-label="On this page">
+        <h2>On this page</h2>
         <ol class="toc">
           <li><a href="#methods">Three heatmap methods</a></li>
           <li><a href="#closed-form">Grad-CAM++ without gradients (runs in the browser)</a></li>
-          <li><a href="#faithful">Is a heatmap honest? Deletion, insertion, ROAD</a></li>
+          <li><a href="#faithful">Is a heatmap honest?</a></li>
           <li><a href="#compression">What compression does to the heatmaps</a></li>
-          <li><a href="#calibration">Can we trust the confidence? (ECE)</a></li>
+          <li><a href="#calibration">Can we trust the confidence?</a></li>
           <li><a href="#field-gap">Why field accuracy is low: the background shortcut</a></li>
           <li><a href="#gallery">Heatmap examples</a></li>
         </ol>
-      </section>
+      </nav>
 
       <section class="card" id="methods">
         <h2>1. Three heatmap methods</h2>
@@ -63,8 +67,8 @@
           <i>g<sub>k</sub></i> = <i>W<sub>c,k</sub></i> / (<i>H</i>·<i>W</i>). Grad-CAM++ then collapses to a closed form that needs only one forward pass:</p>
         <p class="formula">α<sub>k</sub> = g<sub>k</sub>² / (2g<sub>k</sub>² + g<sub>k</sub>³ Σ<sub>ij</sub>A<sup>k</sup><sub>ij</sub> + ε),&nbsp;
           w<sub>k</sub> = HW · ReLU(g<sub>k</sub>) · α<sub>k</sub>,&nbsp; L<sub>c</sub> = ReLU(Σ<sub>k</sub> w<sub>k</sub>A<sup>k</sup>)</p>
-        <p>We checked this against the standard <code>pytorch-grad-cam</code> library on every trained model:</p>
-        <div id="closedform" class="tablewrap"></div>
+        <p>We checked this against the standard <code>pytorch-grad-cam</code> library on every trained model: on maps scaled 0–1 the largest difference is about 0.000001, so the two are the same.</p>
+        <details class="more"><summary>Show the check for every model</summary><div id="closedform" class="tablewrap"></div></details>
         <p class="muted small">Because it is exact, the same formula runs in your browser on the Diagnose page (<code>web/src/xai.js</code>),
           and a parity test checks the JavaScript against the Python to 1e-4.</p>
       </section>
@@ -73,6 +77,7 @@
         <h2>3. Is a heatmap honest?</h2>
         <p>A heatmap can look convincing and still be wrong. We measure <b>faithfulness</b>: if the bright regions really drove the
           answer, removing them should hurt the model most.</p>
+        <details class="more"><summary>What each metric means</summary>
         <dl class="defs">
           <dt>Deletion AUC ↓</dt>
           <dd>Remove pixels from brightest to darkest in 20 steps and track the class probability. A faithful map makes it collapse fast: small area under the curve.</dd>
@@ -83,6 +88,7 @@
           <dt>ROAD ↑</dt>
           <dd>Remove-and-debias: like deletion, but removed pixels are filled in from their neighbours, so the model is not just reacting to odd-looking holes.</dd>
         </dl>
+        </details>
         <p>The app runs a small live version of this on every photo: it hides the brightest 20% and a random 20%, and only says
           "Passes" if the bright area matters more.</p>
         <h3>Deletion AUC by method (lab test set, lower is better)</h3>
