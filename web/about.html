@@ -15,7 +15,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#f4f2e9" />
+    <meta name="theme-color" content="#e9f1e8" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./favicon.ico" sizes="32x32" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
@@ -60,92 +60,104 @@
           <p class="lede" data-reveal>A leaf-disease checker that shows its reasoning, built as a research project on explainable AI.</p>
         </header>
 
-        <div class="bento">
-          <section class="card t-two-thirds" aria-labelledby="what-title" data-reveal>
-            <h2 id="what-title">What it is</h2>
-            <p>CropXAI recognises 38 leaf conditions across 14 crops from one photo, shows <b>where</b> the model looked and <b>whether that
-              explanation is honest</b>, and suggests what to do. It is built around one question:
-              <em>can a small model that runs on a phone still explain its decisions faithfully?</em></p>
-            <ul>
-              <li><b>Runs entirely on your device.</b> The model (ONNX Runtime Web, WebAssembly) and the heatmap run in the browser; no photo is uploaded. After the first visit it works offline and can be installed as an app.</li>
-              <li><b>Explains every answer.</b> Grad-CAM++ heatmap, evidence for the 2nd and 3rd guesses, a live faithfulness test, and an exact breakdown of the score.</li>
-              <li><b>Honest about its limits.</b> It says "Not sure" below a validated confidence threshold, warns when a photo does not look like a supported crop, and shows its measured field accuracy.</li>
-            </ul>
-          </section>
-          <section class="card ink t-third" id="privacy" aria-labelledby="privacy-title" data-reveal>
-            <span class="tile-icon">{{icon:shield}}</span>
-            <h2 id="privacy-title">Privacy</h2>
-            <p>Your photo never leaves your device. There are no accounts, no cookies, no analytics and no tracking. <a href="./privacy.html">Read the privacy notice</a></p>
-          </section>
-        </div>
+        <div class="docs">
+          <nav class="card docs-nav" aria-labelledby="toc-title">
+            <h2 id="toc-title">On this page</h2>
+            <ol class="toc">
+              <li><a href="#what">What it is</a></li>
+              <li><a href="#privacy">Privacy</a></li>
+              <li><a href="#built">How it was built</a></li>
+              <li><a href="#limits">Limitations and scope</a></li>
+              <li><a href="#faq">Questions</a></li>
+              <li><a href="#remedies">Remedies for 38 classes</a></li>
+              <li><a href="#sources">Data, models and methods</a></li>
+            </ol>
+          </nav>
 
-        <section class="card" aria-labelledby="built-title" data-reveal>
-          <h2 id="built-title">How it was built</h2>
-          <ol class="steps">
-            <li><b>Data.</b> PlantVillage lab photos (38 classes) for training; PlantDoc real-field photos kept aside as an untouched field test. Near-duplicates are removed with perceptual hashing, and a guard blocks field photos from training and tuning.</li>
-            <li><b>Models.</b> MobileNetV3-Large and EfficientNet-B0 (ImageNet pre-trained, frozen or fully fine-tuned) and a small CNN from scratch, each trained with 3 seeds (the small CNN once).</li>
-            <li><b>Compression.</b> Structured channel pruning (50%, 70%) with and without fine-tuning, and INT8 quantization (XNNPACK scheme used on Android).</li>
-            <li><b>Explanations.</b> Grad-CAM, Grad-CAM++ and Score-CAM, scored with deletion/insertion AUC, Average Drop, Increase in Confidence and ROAD, plus stability under compression.</li>
-            <li><b>App.</b> The trained model is exported to ONNX with two outputs (scores and feature maps), so the browser computes Grad-CAM++ in closed form from a single forward pass.</li>
-          </ol>
-          <p class="small">Details: <a href="./results.html">Results</a> · <a href="./explain.html">Explainability</a></p>
-        </section>
+          <div class="docs-body">
+            <section class="card" id="what" aria-labelledby="what-title" data-reveal>
+              <h2 id="what-title">What it is</h2>
+              <p>CropXAI recognises 38 leaf conditions across 14 crops from one photo, shows <b>where</b> the model looked and <b>whether that
+                explanation is honest</b>, and suggests what to do. It is built around one question:
+                <em>can a small model that runs on a phone still explain its decisions faithfully?</em></p>
+              <ul>
+                <li><b>Runs entirely on your device.</b> The model (ONNX Runtime Web, WebAssembly) and the heatmap run in the browser; no photo is uploaded. After the first visit it works offline and can be installed as an app.</li>
+                <li><b>Explains every answer.</b> Grad-CAM++ heatmap, evidence for the 2nd and 3rd guesses, a live faithfulness test, and an exact breakdown of the score.</li>
+                <li><b>Honest about its limits.</b> It says "Not sure" below a validated confidence threshold, warns when a photo does not look like a supported crop, and shows its measured field accuracy.</li>
+              </ul>
+            </section>
 
-        <section class="card" id="limits" aria-labelledby="limits-title" data-reveal>
-          <h2 id="limits-title">Limitations and scope</h2>
-          <ul>
-            <li><b>Only 14 crops and 38 conditions.</b> Apple, blueberry, cherry, corn (maize), grape, orange, peach, bell pepper, potato, raspberry, soybean,
-              squash, strawberry and tomato. Rice, wheat, cotton, mango, banana and every other plant are not covered, and many diseases of the covered crops are missing too.
-              For some crops (blueberry, raspberry, soybean) the model only knows what a healthy leaf looks like.</li>
-            <li><b>Lab photos vs. real fields.</b> It was trained on PlantVillage photos of single leaves on plain backgrounds. On real field photos it is right only about
-              one time in four or five (<a href="./results.html">Results</a>). Photograph one leaf against a plain background for the best chance.</li>
-            <li><b>It always picks one of its 38 classes.</b> A classifier cannot say "something else" by itself, so the app adds two safety checks: a
-              <b>"Not sure"</b> answer when the confidence is low, and a <b>"not a supported crop"</b> warning when the photo is unlike every training leaf
-              (<a href="./explain.html#unsupported">how it works and how well</a>). Both can be fooled; neither replaces your own judgement.</li>
-            <li><b>One problem per leaf.</b> Leaves with two diseases, nutrient deficiencies, insect damage or herbicide injury are outside what it learned.</li>
-            <li><b>Confidence is not probability.</b> The default model is over-confident on some photos (see calibration on the <a href="./explain.html#calibration">Explainability</a> page).</li>
-            <li><b>Remedies are unreviewed.</b> The advice is general, widely published integrated-pest-management guidance written for this project, and has not been checked by a plant pathologist.
-              Pesticide rules differ by country: always follow the product label and your local agricultural extension service.</li>
-            <li><b>Research prototype.</b> Not tested with farmers and not a certified diagnostic tool.</li>
-          </ul>
-        </section>
+            <section class="card ink" id="privacy" aria-labelledby="privacy-title" data-reveal>
+              <span class="tile-icon">{{icon:shield}}</span>
+              <h2 id="privacy-title">Privacy</h2>
+              <p>Your photo never leaves your device. There are no accounts, no cookies, no analytics and no tracking. <a href="./privacy.html">Read the privacy notice</a></p>
+            </section>
 
-        <section class="card faq" id="faq" aria-labelledby="faq-title" data-reveal>
-          <h2 id="faq-title">Questions</h2>
-          <details><summary>Is my photo uploaded?</summary><div><p>No. The model, the heatmap and all the checks run inside your browser. The site only downloads the app and the model files.</p></div></details>
-          <details><summary>Which crops can it check?</summary><div><p>14 crops and 38 conditions, healthy included: apple, blueberry, cherry, corn (maize), grape, orange, peach, bell pepper, potato, raspberry, soybean, squash, strawberry and tomato. Every other plant is outside what it learned.</p></div></details>
-          <details><summary>Why does it sometimes say "Not sure"?</summary><div><p>When its confidence is below a threshold that was set on validation photos, it refuses to name a problem instead of guessing. Retake the photo of a single leaf, close up, in daylight.</p></div></details>
-          <details><summary>How accurate is it?</summary><div><p>Very accurate on lab photos of single leaves, and much less accurate on real field photos. The measured numbers are on the <a href="./results.html">Results</a> page.</p></div></details>
-          <details><summary>Does it work without internet?</summary><div><p>Yes, after the first visit. The app caches itself and the default model, and it can be installed on a phone like an app.</p></div></details>
-          <details><summary>Can I rely on the remedies?</summary><div><p>Treat them as general guidance only. They have not been reviewed by a plant pathologist, and pesticide rules differ by country, so follow the product label and your local agricultural extension service.</p></div></details>
-          <details><summary>What does the heatmap mean?</summary><div><p>Bright areas are the parts of the photo that pushed the model towards its answer. If the bright area sits on the background, soil or your hand rather than on the leaf, don't trust the result.</p></div></details>
-        </section>
+            <section class="card" id="built" aria-labelledby="built-title" data-reveal>
+              <h2 id="built-title">How it was built</h2>
+              <ol class="steps">
+                <li><b>Data.</b> PlantVillage lab photos (38 classes) for training; PlantDoc real-field photos kept aside as an untouched field test. Near-duplicates are removed with perceptual hashing, and a guard blocks field photos from training and tuning.</li>
+                <li><b>Models.</b> MobileNetV3-Large and EfficientNet-B0 (ImageNet pre-trained, frozen or fully fine-tuned) and a small CNN from scratch, each trained with 3 seeds (the small CNN once).</li>
+                <li><b>Compression.</b> Structured channel pruning (50%, 70%) with and without fine-tuning, and INT8 quantization (XNNPACK scheme used on Android).</li>
+                <li><b>Explanations.</b> Grad-CAM, Grad-CAM++ and Score-CAM, scored with deletion/insertion AUC, Average Drop, Increase in Confidence and ROAD, plus stability under compression.</li>
+                <li><b>App.</b> The trained model is exported to ONNX with two outputs (scores and feature maps), so the browser computes Grad-CAM++ in closed form from a single forward pass.</li>
+              </ol>
+              <p class="small">Details: <a href="./results.html">Results</a> · <a href="./explain.html">Explainability</a></p>
+            </section>
 
-        <section class="card" id="remedies" aria-labelledby="remedies-title" data-reveal>
-          <h2 id="remedies-title">Remedies for all 38 classes</h2>
-          <p class="note small" id="remedynote"></p>
-          <label class="search">Find a crop or disease <input id="remedyfilter" type="search" placeholder="e.g. tomato, blight" autocomplete="off" /></label>
-          <p class="empty" id="remedyempty" role="status" hidden></p>
-          <div id="remedylist"><span class="skeleton"></span><span class="skeleton" style="width:80%"></span><span class="skeleton" style="width:65%"></span></div>
-        </section>
+            <section class="card" id="limits" aria-labelledby="limits-title" data-reveal>
+              <h2 id="limits-title">Limitations and scope</h2>
+              <ul>
+                <li><b>Only 14 crops and 38 conditions.</b> Apple, blueberry, cherry, corn (maize), grape, orange, peach, bell pepper, potato, raspberry, soybean,
+                  squash, strawberry and tomato. Rice, wheat, cotton, mango, banana and every other plant are not covered, and many diseases of the covered crops are missing too.
+                  For some crops (blueberry, raspberry, soybean) the model only knows what a healthy leaf looks like.</li>
+                <li><b>Lab photos vs. real fields.</b> It was trained on PlantVillage photos of single leaves on plain backgrounds. On real field photos it is right only about
+                  one time in four or five (<a href="./results.html">Results</a>). Photograph one leaf against a plain background for the best chance.</li>
+                <li><b>It always picks one of its 38 classes.</b> A classifier cannot say "something else" by itself, so the app adds two safety checks: a
+                  <b>"Not sure"</b> answer when the confidence is low, and a <b>"not a supported crop"</b> warning when the photo is unlike every training leaf
+                  (<a href="./explain.html#unsupported">how it works and how well</a>). Both can be fooled; neither replaces your own judgement.</li>
+                <li><b>One problem per leaf.</b> Leaves with two diseases, nutrient deficiencies, insect damage or herbicide injury are outside what it learned.</li>
+                <li><b>Confidence is not probability.</b> The default model is over-confident on some photos (see calibration on the <a href="./explain.html#calibration">Explainability</a> page).</li>
+                <li><b>Remedies are unreviewed.</b> The advice is general, widely published integrated-pest-management guidance written for this project, and has not been checked by a plant pathologist.
+                  Pesticide rules differ by country: always follow the product label and your local agricultural extension service.</li>
+                <li><b>Research prototype.</b> Not tested with farmers and not a certified diagnostic tool.</li>
+              </ul>
+            </section>
 
-        <div class="bento">
-          <section class="card t-two-thirds" id="sources" aria-labelledby="sources-title" data-reveal>
-            <h2 id="sources-title">Data, models and methods</h2>
-            <ul class="small">
-              <li><b>PlantVillage</b> (training, validation and lab test): D. P. Hughes and M. Salathé, "An open access repository of images on plant health to enable the development of mobile disease diagnostics", arXiv:1511.08060, 2015. 54,000+ leaf photos, 38 classes.</li>
-              <li><b>PlantDoc</b> (field test only, never trained on): D. Singh et al., "PlantDoc: A Dataset for Visual Plant Disease Detection", CoDS-COMAD 2020.</li>
-              <li><b>MobileNetV3</b>: A. Howard et al., "Searching for MobileNetV3", ICCV 2019. <b>EfficientNet</b>: M. Tan and Q. Le, ICML 2019. ImageNet weights from the <code>timm</code> library.</li>
-              <li><b>Grad-CAM</b>: R. Selvaraju et al., ICCV 2017. <b>Grad-CAM++</b>: A. Chattopadhay et al., WACV 2018. <b>Score-CAM</b>: H. Wang et al., CVPR Workshops 2020.</li>
-              <li><b>Supported-crop check</b>: Mahalanobis distance on network features, after K. Lee et al., "A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks", NeurIPS 2018.</li>
-              <li><b>In the browser</b>: ONNX Runtime Web (WebAssembly). Code: <a href="https://github.com/ranjanvrma/crop-disease-xai" rel="noopener">github.com/ranjanvrma/crop-disease-xai</a>.</li>
-            </ul>
-          </section>
-          <section class="card tinted t-third" id="credits" aria-labelledby="credits-title" data-reveal>
-            <h2 id="credits-title">Image credits</h2>
-            <p class="small">Leaf images in the results and the sample leaves on the Diagnose page come from the PlantVillage and PlantDoc datasets.
-              The sample cat photo ("Chelsea") is from the scikit-image sample data (public domain). Icons: Lucide (ISC licence). Fonts: Bricolage Grotesque and Atkinson Hyperlegible Next (SIL Open Font Licence).</p>
-          </section>
+            <section class="card faq" id="faq" aria-labelledby="faq-title" data-reveal>
+              <h2 id="faq-title">Questions</h2>
+              <details><summary>Is my photo uploaded?</summary><div><p>No. The model, the heatmap and all the checks run inside your browser. The site only downloads the app and the model files.</p></div></details>
+              <details><summary>Which crops can it check?</summary><div><p>14 crops and 38 conditions, healthy included: apple, blueberry, cherry, corn (maize), grape, orange, peach, bell pepper, potato, raspberry, soybean, squash, strawberry and tomato. Every other plant is outside what it learned.</p></div></details>
+              <details><summary>Why does it sometimes say "Not sure"?</summary><div><p>When its confidence is below a threshold that was set on validation photos, it refuses to name a problem instead of guessing. Retake the photo of a single leaf, close up, in daylight.</p></div></details>
+              <details><summary>How accurate is it?</summary><div><p>Very accurate on lab photos of single leaves, and much less accurate on real field photos. The measured numbers are on the <a href="./results.html">Results</a> page.</p></div></details>
+              <details><summary>Does it work without internet?</summary><div><p>Yes, after the first visit. The app caches itself and the default model, and it can be installed on a phone like an app.</p></div></details>
+              <details><summary>Can I rely on the remedies?</summary><div><p>Treat them as general guidance only. They have not been reviewed by a plant pathologist, and pesticide rules differ by country, so follow the product label and your local agricultural extension service.</p></div></details>
+              <details><summary>What does the heatmap mean?</summary><div><p>Bright areas are the parts of the photo that pushed the model towards its answer. If the bright area sits on the background, soil or your hand rather than on the leaf, don't trust the result.</p></div></details>
+            </section>
+
+            <section class="card" id="remedies" aria-labelledby="remedies-title" data-reveal>
+              <h2 id="remedies-title">Remedies for all 38 classes</h2>
+              <p class="note small" id="remedynote"></p>
+              <label class="search">Find a crop or disease <input id="remedyfilter" type="search" placeholder="e.g. tomato, blight" autocomplete="off" /></label>
+              <p class="empty" id="remedyempty" role="status" hidden></p>
+              <div id="remedylist"><span class="skeleton"></span><span class="skeleton" style="width:80%"></span><span class="skeleton" style="width:65%"></span></div>
+            </section>
+
+            <section class="card" id="sources" aria-labelledby="sources-title" data-reveal>
+              <h2 id="sources-title">Data, models and methods</h2>
+              <ul class="small">
+                <li><b>PlantVillage</b> (training, validation and lab test): D. P. Hughes and M. Salathé, "An open access repository of images on plant health to enable the development of mobile disease diagnostics", arXiv:1511.08060, 2015. 54,000+ leaf photos, 38 classes.</li>
+                <li><b>PlantDoc</b> (field test only, never trained on): D. Singh et al., "PlantDoc: A Dataset for Visual Plant Disease Detection", CoDS-COMAD 2020.</li>
+                <li><b>MobileNetV3</b>: A. Howard et al., "Searching for MobileNetV3", ICCV 2019. <b>EfficientNet</b>: M. Tan and Q. Le, ICML 2019. ImageNet weights from the <code>timm</code> library.</li>
+                <li><b>Grad-CAM</b>: R. Selvaraju et al., ICCV 2017. <b>Grad-CAM++</b>: A. Chattopadhay et al., WACV 2018. <b>Score-CAM</b>: H. Wang et al., CVPR Workshops 2020.</li>
+                <li><b>Supported-crop check</b>: Mahalanobis distance on network features, after K. Lee et al., "A Simple Unified Framework for Detecting Out-of-Distribution Samples and Adversarial Attacks", NeurIPS 2018.</li>
+                <li><b>In the browser</b>: ONNX Runtime Web (WebAssembly). Code: <a href="https://github.com/ranjanvrma/crop-disease-xai" rel="noopener">github.com/ranjanvrma/crop-disease-xai</a>.</li>
+              </ul>
+              <h3 id="credits">Image and type credits</h3>
+              <p class="small">Leaf images in the results and the sample leaves on the Diagnose page come from the PlantVillage and PlantDoc datasets.
+                The sample cat photo ("Chelsea") is from the scikit-image sample data (public domain). Icons: Lucide (ISC licence). Fonts: Fraunces and Atkinson Hyperlegible Next (SIL Open Font Licence).</p>
+            </section>
+          </div>
         </div>
       </div>
     </main>

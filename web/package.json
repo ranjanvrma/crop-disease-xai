@@ -12,7 +12,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@fontsource-variable/bricolage-grotesque": "5.3.0",
+    "@fontsource-variable/fraunces": "5.3.0",
     "@fontsource/atkinson-hyperlegible-next": "5.3.0",
     "lucide": "1.55.0",
     "motion": "14.1.0",

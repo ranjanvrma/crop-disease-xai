@@ -43,11 +43,12 @@ How the front end is put together (plain HTML, CSS and JavaScript, built by Vite
   static HTML. Icons are [Lucide](https://lucide.dev) SVGs inlined from `src/icons.js`.
 - **Animation** uses [Motion](https://motion.dev)'s vanilla API in `src/ui.js`: entrance and
   scroll reveals (`[data-reveal]`), hover and press springs, the menu, accordions, count-ups and
-  bar growth, the tilting "scan card" on the home page (the real model running on the sample leaf).
+  bar growth, and the live specimen on the home page: the real model runs on a sample leaf and you drag
+  across it to compare the photo with its heatmap.
   Everything is skipped under `prefers-reduced-motion`, and content is visible without JavaScript.
 - **Theme:** light and dark, following the device unless the visitor picks one (stored in
   `localStorage` as `cropxai-theme`, applied before paint by `public/theme-init.js`).
-- **Fonts** (Bricolage Grotesque, Atkinson Hyperlegible Next) are self-hosted from npm packages.
+- **Fonts** (Fraunces, Atkinson Hyperlegible Next) are self-hosted from npm packages.
   The site makes no requests to other origins.
 - **Security headers** are defined once in `security-headers.js` (used by `vite preview`) and
   repeated in `render.yaml` for the live site; `npm test` fails if the two drift apart. The CSP

@@ -1,7 +1,12 @@
 // Offline support: cache the whole app (code, ONNX Runtime, default model,
-// remedies, all pages) on first visit, then serve it from the cache. The build (vite.config.js) writes
+// remedies, all pages) on first visit. The build (vite.config.js) writes
 // precache.json and stamps VERSION below, so every new build installs a fresh
 // copy and deletes the old one.
+//
+// Pages and data files are fetched from the network first and fall back to the
+// cache when offline, so a new version of the site shows up on the next visit
+// instead of one visit later. Everything else (hashed build assets, models,
+// images) is served from the cache first.
 
 const VERSION = '__PRECACHE_VERSION__';
 const CACHE = `cropxai-${VERSION}`;
@@ -21,16 +26,31 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+const networkFirst = (request) => request.mode === 'navigate' || /\.json$/.test(new URL(request.url).pathname);
+
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || new URL(event.request.url).origin !== location.origin) return;
+  const { request } = event;
+  if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const hit = await cache.match(event.request, { ignoreSearch: true, ignoreVary: true });
+    if (networkFirst(request)) {
+      try {
+        const response = await fetch(request);
+        if (response.ok) event.waitUntil(cache.put(request, response.clone()));
+        return response;
+      } catch {
+        const hit = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
+        if (hit) return hit;
+        if (request.mode === 'navigate') return (await cache.match('./404.html')) ?? Response.error();
+        return Response.error();
+      }
+    }
+    const hit = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
     if (hit) return hit;
-    const response = await fetch(event.request);
+    const response = await fetch(request);
     // Models other than the default are cached the first time they are used.
-    if (response.ok && new URL(event.request.url).pathname.includes('/models/')) {
-      event.waitUntil(cache.put(event.request, response.clone()));
+    if (response.ok && new URL(request.url).pathname.includes('/models/')) {
+      event.waitUntil(cache.put(request, response.clone()));
     }
     return response;
   })());

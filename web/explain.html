@@ -15,7 +15,7 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#f4f2e9" />
+    <meta name="theme-color" content="#e9f1e8" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./favicon.ico" sizes="32x32" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
@@ -45,145 +45,140 @@
           <p class="lede" data-reveal>A diagnosis is only useful if you can see why it was made. Here is how the heatmaps work, how we test that they are honest, and what they revealed.</p>
         </header>
 
-        <div class="bento keypoints" id="keypoints" aria-live="polite">
-          <section class="card t-third skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
-          <section class="card t-third skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
-          <section class="card t-third skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
+        <div class="stats" id="keypoints" aria-live="polite">
+          <section class="card skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
+          <section class="card skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
+          <section class="card skeleton-card"><span class="skeleton" style="width:40%;height:38px"></span><span class="skeleton"></span><span class="skeleton" style="width:70%"></span></section>
         </div>
 
-        <nav class="card tinted" aria-labelledby="toc-title" data-reveal>
-          <h2 id="toc-title">On this page</h2>
-          <ol class="toc">
-            <li><a href="#methods">Three heatmap methods</a></li>
-            <li><a href="#closed-form">Grad-CAM++ without gradients</a></li>
-            <li><a href="#faithful">Is a heatmap honest?</a></li>
-            <li><a href="#compression">What compression does to the heatmaps</a></li>
-            <li><a href="#calibration">Can we trust the confidence?</a></li>
-            <li><a href="#field-gap">Why field accuracy is low</a></li>
-            <li><a href="#unsupported">Spotting photos it was not trained on</a></li>
-            <li><a href="#gallery">Heatmap examples</a></li>
-          </ol>
-        </nav>
+        <div class="docs">
+          <nav class="card docs-nav" aria-labelledby="toc-title">
+            <h2 id="toc-title">On this page</h2>
+            <ol class="toc">
+              <li><a href="#methods">Three heatmap methods</a></li>
+              <li><a href="#closed-form">Grad-CAM++ without gradients</a></li>
+              <li><a href="#faithful">Is a heatmap honest?</a></li>
+              <li><a href="#compression">What compression does</a></li>
+              <li><a href="#calibration">Can we trust the confidence?</a></li>
+              <li><a href="#field-gap">Why field accuracy is low</a></li>
+              <li><a href="#unsupported">Spotting unfamiliar photos</a></li>
+              <li><a href="#gallery">Heatmap examples</a></li>
+            </ol>
+          </nav>
 
-        <div class="bento">
-          <section class="card t-half" id="methods" data-reveal>
-            <h2><span class="num">01</span>Three heatmap methods</h2>
-            <p>All three are <b>class activation maps</b>: they weight the last convolutional layer's feature maps (for MobileNetV3,
-              960 maps of 7×7 cells) and add them up into one 7×7 map, which is enlarged to the 224×224 photo.</p>
-            <dl class="defs">
-              <dt>Grad-CAM</dt>
-              <dd>Weights each feature map by the average gradient of the class score with respect to it: "how much would the score rise if this pattern got stronger?"</dd>
-              <dt>Grad-CAM++</dt>
-              <dd>Uses second- and third-order gradient terms so that several separate lesions on one leaf can all light up, instead of only the strongest one. This is the method the app shows.</dd>
-              <dt>Score-CAM</dt>
-              <dd>Needs no gradients: masks the photo with each feature map in turn and measures how much the class score rises. Much slower (one forward pass per map).</dd>
-            </dl>
-          </section>
+          <div class="docs-body">
+            <section class="card" id="methods" data-reveal>
+              <h2><span class="num">01</span>Three heatmap methods</h2>
+              <p>All three are <b>class activation maps</b>: they weight the last convolutional layer's feature maps (for MobileNetV3,
+                960 maps of 7×7 cells) and add them up into one 7×7 map, which is enlarged to the 224×224 photo.</p>
+              <dl class="defs">
+                <dt>Grad-CAM</dt>
+                <dd>Weights each feature map by the average gradient of the class score with respect to it: "how much would the score rise if this pattern got stronger?"</dd>
+                <dt>Grad-CAM++</dt>
+                <dd>Uses second- and third-order gradient terms so that several separate lesions on one leaf can all light up, instead of only the strongest one. This is the method the app shows.</dd>
+                <dt>Score-CAM</dt>
+                <dd>Needs no gradients: masks the photo with each feature map in turn and measures how much the class score rises. Much slower (one forward pass per map).</dd>
+              </dl>
+            </section>
 
-          <section class="card ink t-half" id="closed-form" data-reveal>
-            <span class="tile-icon">{{icon:cpu}}</span>
-            <h2><span class="num">02</span>Grad-CAM++ without gradients</h2>
-            <p>Phones and browsers run models forward only; they cannot compute gradients. But every network here ends in
-              <b>global average pooling</b> followed by <b>one linear layer</b>, so the gradient of class score <i>y<sub>c</sub></i>
-              with respect to every cell of feature map <i>A<sup>k</sup></i> is the constant
-              <i>g<sub>k</sub></i> = <i>W<sub>c,k</sub></i> / (<i>H</i>·<i>W</i>). Grad-CAM++ then collapses to a closed form that needs only one forward pass.</p>
-            <p>We checked it against the standard <code>pytorch-grad-cam</code> library on every trained model: on maps scaled 0 to 1 the largest difference is about 0.000001, so the two are the same.</p>
-          </section>
-        </div>
+            <section class="card ink" id="closed-form" data-reveal>
+              <h2><span class="num">02</span>Grad-CAM++ without gradients</h2>
+              <p>Phones and browsers run models forward only; they cannot compute gradients. But every network here ends in
+                <b>global average pooling</b> followed by <b>one linear layer</b>, so the gradient of class score <i>y<sub>c</sub></i>
+                with respect to every cell of feature map <i>A<sup>k</sup></i> is the constant
+                <i>g<sub>k</sub></i> = <i>W<sub>c,k</sub></i> / (<i>H</i>·<i>W</i>). Grad-CAM++ then collapses to a closed form that needs only one forward pass.</p>
+              <p class="formula">α<sub>k</sub> = g<sub>k</sub>² / (2g<sub>k</sub>² + g<sub>k</sub>³ Σ<sub>ij</sub>A<sup>k</sup><sub>ij</sub> + ε),&nbsp;
+                w<sub>k</sub> = HW · ReLU(g<sub>k</sub>) · α<sub>k</sub>,&nbsp; L<sub>c</sub> = ReLU(Σ<sub>k</sub> w<sub>k</sub>A<sup>k</sup>)</p>
+              <p><button type="button" class="btn small" data-copy="alpha_k = g_k^2 / (2 g_k^2 + g_k^3 * sum_ij A^k_ij + eps);  w_k = H*W * ReLU(g_k) * alpha_k;  L_c = ReLU(sum_k w_k A^k);  g_k = W_ck / (H*W)" data-copy-done="Formula copied">{{icon:copy}} Copy formula</button></p>
+              <p>We checked it against the standard <code>pytorch-grad-cam</code> library on every trained model: on maps scaled 0 to 1 the largest difference is about 0.000001, so the two are the same.
+                The same formula runs in your browser on the Diagnose page (<code>web/src/xai.js</code>), and a parity test checks the JavaScript against the Python to 1e-4.</p>
+              <details class="more"><summary>Show the check for every model</summary><div id="closedform" class="tablewrap" tabindex="0" role="region" aria-label="Closed form vs library, per model"></div></details>
+            </section>
 
-        <section class="card" aria-labelledby="formula-title" data-reveal>
-          <h3 id="formula-title">The closed form</h3>
-          <p class="formula">α<sub>k</sub> = g<sub>k</sub>² / (2g<sub>k</sub>² + g<sub>k</sub>³ Σ<sub>ij</sub>A<sup>k</sup><sub>ij</sub> + ε),&nbsp;
-            w<sub>k</sub> = HW · ReLU(g<sub>k</sub>) · α<sub>k</sub>,&nbsp; L<sub>c</sub> = ReLU(Σ<sub>k</sub> w<sub>k</sub>A<sup>k</sup>)</p>
-          <p><button type="button" class="btn small" data-copy="alpha_k = g_k^2 / (2 g_k^2 + g_k^3 * sum_ij A^k_ij + eps);  w_k = H*W * ReLU(g_k) * alpha_k;  L_c = ReLU(sum_k w_k A^k);  g_k = W_ck / (H*W)" data-copy-done="Formula copied">{{icon:copy}} Copy formula</button></p>
-          <details class="more"><summary>Show the check for every model</summary><div id="closedform" class="tablewrap" tabindex="0" role="region" aria-label="Closed form vs library, per model"></div></details>
-          <p class="muted small">Because it is exact, the same formula runs in your browser on the Diagnose page (<code>web/src/xai.js</code>),
-            and a parity test checks the JavaScript against the Python to 1e-4.</p>
-        </section>
+            <section class="card" id="faithful" data-reveal>
+              <h2><span class="num">03</span>Is a heatmap honest?</h2>
+              <p>A heatmap can look convincing and still be wrong. We measure <b>faithfulness</b>: if the bright regions really drove the
+                answer, removing them should hurt the model most.</p>
+              <details class="more"><summary>What each metric means</summary>
+                <dl class="defs">
+                  <dt>Deletion AUC ↓</dt>
+                  <dd>Remove pixels from brightest to darkest in 20 steps and track the class probability. A faithful map makes it collapse fast: small area under the curve.</dd>
+                  <dt>Insertion AUC ↑</dt>
+                  <dd>Start from a blurred photo and restore pixels from brightest to darkest. A faithful map makes the probability rise fast.</dd>
+                  <dt>Average Drop ↓ / Increase in Confidence ↑</dt>
+                  <dd>Show the model only the highlighted region: how much confidence is lost (or gained)?</dd>
+                  <dt>ROAD ↑</dt>
+                  <dd>Remove-and-debias: like deletion, but removed pixels are filled in from their neighbours, so the model is not just reacting to odd-looking holes.</dd>
+                </dl>
+              </details>
+              <p>The app runs a small live version of this on every photo: it hides the brightest 20% and a random 20%, and only says
+                "Passes" if the bright area matters more.</p>
+              <h3>Deletion AUC by method (lab test set, lower is better)</h3>
+              <div id="delchart" class="chart"></div>
+              <p id="delfinding"></p>
+            </section>
 
-        <section class="card" id="faithful" data-reveal>
-          <h2><span class="num">03</span>Is a heatmap honest?</h2>
-          <p>A heatmap can look convincing and still be wrong. We measure <b>faithfulness</b>: if the bright regions really drove the
-            answer, removing them should hurt the model most.</p>
-          <details class="more"><summary>What each metric means</summary>
-          <dl class="defs">
-            <dt>Deletion AUC ↓</dt>
-            <dd>Remove pixels from brightest to darkest in 20 steps and track the class probability. A faithful map makes it collapse fast: small area under the curve.</dd>
-            <dt>Insertion AUC ↑</dt>
-            <dd>Start from a blurred photo and restore pixels from brightest to darkest. A faithful map makes the probability rise fast.</dd>
-            <dt>Average Drop ↓ / Increase in Confidence ↑</dt>
-            <dd>Show the model only the highlighted region: how much confidence is lost (or gained)?</dd>
-            <dt>ROAD ↑</dt>
-            <dd>Remove-and-debias: like deletion, but removed pixels are filled in from their neighbours, so the model is not just reacting to odd-looking holes.</dd>
-          </dl>
-          </details>
-          <p>The app runs a small live version of this on every photo: it hides the brightest 20% and a random 20%, and only says
-            "Passes" if the bright area matters more.</p>
-          <h3>Deletion AUC by method (lab test set, lower is better)</h3>
-          <div id="delchart" class="chart"></div>
-          <p id="delfinding"></p>
-        </section>
+            <section class="card" id="compression" data-reveal>
+              <h2><span class="num">04</span>What compression does to the heatmaps</h2>
+              <p>To run on cheap phones the baseline MobileNetV3 (<code>mnv3_fe</code>) was compressed with <b>structured pruning</b>
+                (removing 50% or 70% of channels) and <b>INT8 quantization</b>. Does the compressed model still look at the same places?
+                Each compressed model's heatmap is compared with the parent's on the same images (Spearman rank correlation; 1 = identical).</p>
+              <div id="stabchart" class="chart"></div>
+              <p id="stabfinding"></p>
+            </section>
 
-        <div class="bento">
-          <section class="card t-two-thirds" id="compression" data-reveal>
-            <h2><span class="num">04</span>What compression does to the heatmaps</h2>
-            <p>To run on cheap phones the baseline MobileNetV3 (<code>mnv3_fe</code>) was compressed with <b>structured pruning</b>
-              (removing 50% or 70% of channels) and <b>INT8 quantization</b>. Does the compressed model still look at the same places?
-              Each compressed model's heatmap is compared with the parent's on the same images (Spearman rank correlation; 1 = identical).</p>
-            <div id="stabchart" class="chart"></div>
-            <p id="stabfinding"></p>
-          </section>
-          <section class="card t-third tinted" id="calibration" data-reveal>
-            <h2><span class="num">05</span>Can we trust the confidence?</h2>
-            <p><b>Expected calibration error (ECE)</b> compares confidence with how often predictions are actually right. 0 means "80% confident" really is right 80% of the time.</p>
-            <div id="ecechart" class="chart"></div>
-            <p id="ecefinding"></p>
-            <p class="muted small">This is why the app has a "Not sure" state: below a confidence threshold, tuned on the validation split only, it refuses to name a disease.</p>
-          </section>
-        </div>
+            <section class="card tinted" id="calibration" data-reveal>
+              <h2><span class="num">05</span>Can we trust the confidence?</h2>
+              <p><b>Expected calibration error (ECE)</b> compares confidence with how often predictions are actually right. 0 means "80% confident" really is right 80% of the time.</p>
+              <div id="ecechart" class="chart"></div>
+              <p id="ecefinding"></p>
+              <p class="muted small">This is why the app has a "Not sure" state: below a confidence threshold, tuned on the validation split only, it refuses to name a disease.</p>
+            </section>
 
-        <section class="card" id="field-gap" data-reveal>
-          <h2><span class="num">06</span>Why field accuracy is low: the background shortcut</h2>
-          <div id="gapfinding"></div>
-          <div class="figpair">
-            <figure>
-              <picture><source srcset="./figures/mnv3_ft_field_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_ft_field_seed0_test.jpg" alt="Grid of lab test leaf photos, each followed by its Grad-CAM++, Grad-CAM and Score-CAM heatmap; most heatmaps sit on the leaf" width="900" height="1800" loading="lazy" decoding="async" /></picture>
-              <figcaption>Lab test photos (mnv3_ft_field, seed 0). ✓ = correct.</figcaption>
-            </figure>
-            <figure>
-              <picture><source srcset="./figures/mnv3_ft_field_seed0_field_test.webp" type="image/webp" /><img src="./figures/mnv3_ft_field_seed0_field_test.jpg" alt="Grid of real field photos with the same three heatmaps; many predictions are wrong and some heatmaps spread over the background" width="900" height="1800" loading="lazy" decoding="async" /></picture>
-              <figcaption>Field photos, same model. ✗ = wrong.</figcaption>
-            </figure>
+            <section class="card" id="field-gap" data-reveal>
+              <h2><span class="num">06</span>Why field accuracy is low: the background shortcut</h2>
+              <div id="gapfinding"></div>
+              <div class="figpair">
+                <figure>
+                  <picture><source srcset="./figures/mnv3_ft_field_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_ft_field_seed0_test.jpg" alt="Grid of lab test leaf photos, each followed by its Grad-CAM++, Grad-CAM and Score-CAM heatmap; most heatmaps sit on the leaf" width="900" height="1800" loading="lazy" decoding="async" /></picture>
+                  <figcaption>Lab test photos (mnv3_ft_field, seed 0). ✓ = correct.</figcaption>
+                </figure>
+                <figure>
+                  <picture><source srcset="./figures/mnv3_ft_field_seed0_field_test.webp" type="image/webp" /><img src="./figures/mnv3_ft_field_seed0_field_test.jpg" alt="Grid of real field photos with the same three heatmaps; many predictions are wrong and some heatmaps spread over the background" width="900" height="1800" loading="lazy" decoding="async" /></picture>
+                  <figcaption>Field photos, same model. ✗ = wrong.</figcaption>
+                </figure>
+              </div>
+              <p class="muted small">Figures straight from <code>scripts/explain.py</code>; columns are the photo, Grad-CAM++, Grad-CAM and Score-CAM.</p>
+            </section>
+
+            <section class="card" id="unsupported" data-reveal>
+              <h2><span class="num">07</span>Spotting photos it was not trained on</h2>
+              <p>A classifier always answers with one of the classes it knows. Show it a cat and it will name a tomato disease, sometimes with high
+                confidence, so the "Not sure" threshold alone does not catch it.</p>
+              <p>So the app also asks <b>"does this photo look like anything in the training set?"</b>. It averages the network's feature maps into one
+                number per channel (the same numbers the final layer uses), then measures how far that point is from the average of each of the 38 classes in the
+                training photos, using the <b>Mahalanobis distance</b> (which accounts for how much the features normally vary and how they move together).
+                If even the closest class is far away, the app shows <em>"This doesn't look like a leaf from one of the supported crops"</em> instead of a diagnosis.
+                The check costs no extra model run: it reuses the features already computed for the heatmap.</p>
+              <div id="oodfinding"></div>
+              <p class="note small"><b>Limits.</b> This is a distance in the model's own feature space, so it only knows what the model learned to see. A leaf of an unsupported
+                plant that looks like a supported one (for example another nightshade next to tomato) can pass, and a real field photo of a supported crop can be flagged,
+                because field photos also look unlike the lab training photos. The threshold was set using lab validation photos only; the other photos were used only to measure it.</p>
+            </section>
+
+            <section class="card" id="gallery" data-reveal>
+              <h2><span class="num">08</span>Heatmap examples across models</h2>
+              <p class="muted small">The same lab test photos for each model (seed 0). Compare the uncompressed model with its INT8 and pruned versions.</p>
+              <div class="gallery">
+                <figure><picture><source srcset="./figures/mnv3_fe_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_seed0_test.jpg" alt="Heatmaps of the uncompressed MobileNetV3 on lab test photos" width="900" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe (parent)</figcaption></figure>
+                <figure><picture><source srcset="./figures/mnv3_fe_int8_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_int8_seed0_test.jpg" alt="Closed-form Grad-CAM++ heatmaps of the INT8 MobileNetV3 on the same photos" width="450" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe_int8 (closed form)</figcaption></figure>
+                <figure><picture><source srcset="./figures/mnv3_fe_p50_ft8_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_p50_ft8_seed0_test.jpg" alt="Heatmaps of the 50% pruned, fine-tuned MobileNetV3 on the same photos" width="450" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe_p50_ft8</figcaption></figure>
+                <figure><picture><source srcset="./figures/mnv3_fe_p70_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_p70_seed0_test.jpg" alt="Heatmaps of the 70% pruned MobileNetV3 on the same photos" width="450" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe_p70</figcaption></figure>
+                <figure><picture><source srcset="./figures/mnv3_fe_seed0_field_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_seed0_field_test.jpg" alt="Heatmaps of the uncompressed MobileNetV3 on real field photos" width="900" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe on field photos</figcaption></figure>
+              </div>
+            </section>
           </div>
-          <p class="muted small">Figures straight from <code>scripts/explain.py</code>; columns are the photo, Grad-CAM++, Grad-CAM and Score-CAM.</p>
-        </section>
-
-        <section class="card" id="unsupported" data-reveal>
-          <h2><span class="num">07</span>Spotting photos it was not trained on</h2>
-          <p>A classifier always answers with one of the classes it knows. Show it a cat and it will name a tomato disease, sometimes with high
-            confidence, so the "Not sure" threshold alone does not catch it.</p>
-          <p>So the app also asks <b>"does this photo look like anything in the training set?"</b>. It averages the network's feature maps into one
-            number per channel (the same numbers the final layer uses), then measures how far that point is from the average of each of the 38 classes in the
-            training photos, using the <b>Mahalanobis distance</b> (which accounts for how much the features normally vary and how they move together).
-            If even the closest class is far away, the app shows <em>"This doesn't look like a leaf from one of the supported crops"</em> instead of a diagnosis.
-            The check costs no extra model run: it reuses the features already computed for the heatmap.</p>
-          <div id="oodfinding"></div>
-          <p class="note small"><b>Limits.</b> This is a distance in the model's own feature space, so it only knows what the model learned to see. A leaf of an unsupported
-            plant that looks like a supported one (for example another nightshade next to tomato) can pass, and a real field photo of a supported crop can be flagged,
-            because field photos also look unlike the lab training photos. The threshold was set using lab validation photos only; the other photos were used only to measure it.</p>
-        </section>
-
-        <section class="card" id="gallery" data-reveal>
-          <h2><span class="num">08</span>Heatmap examples across models</h2>
-          <p class="muted small">The same lab test photos for each model (seed 0). Compare the uncompressed model with its INT8 and pruned versions.</p>
-          <div class="gallery">
-            <figure><picture><source srcset="./figures/mnv3_fe_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_seed0_test.jpg" alt="Heatmaps of the uncompressed MobileNetV3 on lab test photos" width="900" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe (parent)</figcaption></figure>
-            <figure><picture><source srcset="./figures/mnv3_fe_int8_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_int8_seed0_test.jpg" alt="Closed-form Grad-CAM++ heatmaps of the INT8 MobileNetV3 on the same photos" width="450" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe_int8 (closed form)</figcaption></figure>
-            <figure><picture><source srcset="./figures/mnv3_fe_p50_ft8_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_p50_ft8_seed0_test.jpg" alt="Heatmaps of the 50% pruned, fine-tuned MobileNetV3 on the same photos" width="450" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe_p50_ft8</figcaption></figure>
-            <figure><picture><source srcset="./figures/mnv3_fe_p70_seed0_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_p70_seed0_test.jpg" alt="Heatmaps of the 70% pruned MobileNetV3 on the same photos" width="450" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe_p70</figcaption></figure>
-            <figure><picture><source srcset="./figures/mnv3_fe_seed0_field_test.webp" type="image/webp" /><img src="./figures/mnv3_fe_seed0_field_test.jpg" alt="Heatmaps of the uncompressed MobileNetV3 on real field photos" width="900" height="1800" loading="lazy" decoding="async" /></picture><figcaption>mnv3_fe on field photos</figcaption></figure>
-          </div>
-        </section>
+        </div>
       </div>
     </main>
 

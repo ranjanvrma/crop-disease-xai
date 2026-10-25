@@ -2,7 +2,7 @@
 // public/data/site.json (scripts/export_site_data.py, which reads results/tables/
 // and results/metrics/) or from the default model's remedies.json; none is typed here.
 
-import { countUp, enter, growBars } from './ui.js';
+import { countUp, enter, growBars, smoothDetails } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 const page = document.body.dataset.page;
@@ -47,8 +47,8 @@ function renderTable(el, table, highlight) {
 function barChart(el, rows, series, { max, unit = '', digits = 1 } = {}) {
   const labelW = 132, barH = 14, gap = 4, groupGap = 14, plotW = 250, right = 52;
   const groupH = series.length * (barH + gap) - gap;
-  const h = rows.length * (groupH + groupGap) + 30;
-  const x = (v) => (Math.max(0, v) / max) * plotW;
+  const h = rows.length * (groupH + groupGap);
+  const x = (v) => (Math.min(max, Math.max(0, v)) / max) * plotW;
   let y = 6;
   let body = '';
   for (const row of rows) {
@@ -69,8 +69,9 @@ function barChart(el, rows, series, { max, unit = '', digits = 1 } = {}) {
     });
     y += groupH + groupGap;
   }
-  const legend = series.map((s, i) => `<rect x="${labelW + i * 170 - 120}" y="${h - 18}" width="12" height="12" rx="2" class="${s.cls}" /><text x="${labelW + 18 + i * 170 - 120}" y="${h - 8}" class="lbl">${esc(s.name)}</text>`).join('');
-  el.innerHTML = `<svg viewBox="0 0 ${labelW + plotW + right} ${h}" role="img" aria-label="${esc(series.map((s) => s.name).join(' vs '))}">${body}${legend}</svg>`;
+  // The legend is HTML under the chart, so long series names wrap instead of being clipped.
+  const legend = `<ul class="chart-legend">${series.map((s) => `<li><i class="${s.cls}"></i>${esc(s.name)}</li>`).join('')}</ul>`;
+  el.innerHTML = `<svg viewBox="0 0 ${labelW + plotW + right} ${h}" role="img" aria-label="${esc(series.map((s) => s.name).join(' vs '))}">${body}</svg>${legend}`;
   growBars(el);
 }
 
@@ -94,7 +95,7 @@ const APP_MODEL = 'mnv3_ft_field';
 
 function keypoints(items) {
   const el = $('keypoints');
-  el.innerHTML = items.map(([big, text]) => `<section class="card t-third"><p class="big">${esc(big)}</p><p>${text}</p></section>`).join('');
+  el.innerHTML = items.map(([big, text], i) => `<section class="card stat${i === 0 ? ' ink' : ''}"><p class="big">${esc(big)}</p><p>${text}</p></section>`).join('');
   el.querySelectorAll('.big').forEach(countUp);
   enter([...el.children]);
 }
@@ -239,6 +240,7 @@ async function about() {
       ${list('Organic options', r.organic)}
       ${list('Chemical options (active ingredients)', r.chemical)}
     </details>`).join('');
+  smoothDetails($('remedylist'));
   $('remedyfilter').addEventListener('input', (e) => {
     const q = e.target.value.trim().toLowerCase();
     let shown = 0;
@@ -256,8 +258,8 @@ const pages = { results, explain, about };
 pages[page]?.().catch((err) => {
   const main = document.querySelector('main');
   console.error('Site data failed to load; run scripts/export_site_data.py', err);
-  const target = main.querySelector('.wrap') ?? main;
-  target.insertAdjacentHTML('afterbegin', `<p class="banner danger" role="alert">Could not load the results (${esc(err.message)}). Check your connection and reload the page.</p>`);
+  const target = main.querySelector('.page-head') ?? main;
+  target.insertAdjacentHTML('afterend', `<p class="banner danger" role="alert">Could not load the results (${esc(err.message)}). Check your connection and reload the page.</p>`);
   for (const sk of document.querySelectorAll('.skeleton-card')) sk.remove();
 });
 

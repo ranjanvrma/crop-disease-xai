@@ -6,7 +6,7 @@ import { preprocess, shortSideSize } from './preprocess.js';
 import {
   featureMap, heatmap, hidePixels, oodScore, pixelsToHide, scoreDecomposition, softmax, topK,
 } from './xai.js';
-import { enter, growBars, parallax, reduceMotion, tilt } from './ui.js';
+import { enter, growBars, reduceMotion, smoothDetails } from './ui.js';
 
 const $ = (id) => document.getElementById(id);
 const HIDE_FRACTION = 0.2;
@@ -21,6 +21,10 @@ let bundle = null;
 let current = null; // the last analysed image
 let lastFile = null; // re-analysed when the user switches model
 let models = { default: null, models: [] };
+// Each model load and each analysis takes a ticket; when a newer one has started,
+// the older one stops writing to the page (e.g. two photos chosen in quick succession).
+let loadTicket = 0;
+let analysisTicket = 0;
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -81,11 +85,14 @@ async function loadModelList() {
 async function useModel(id) {
   const info = models.models.find((m) => m.id === id);
   $('modelnote').textContent = info ? info.note : '';
-  setStatus(`Loading ${id}…`, 'loading');
+  const ticket = ++loadTicket;
+  setStatus(`Loading ${info?.label ?? id}…`, 'loading');
   document.body.dataset.ready = 'false';
   $('model').disabled = true;
   try {
-    bundle = await loadBundle(new URL(`./models/${id}/`, document.baseURI).href);
+    const loaded = await loadBundle(new URL(`./models/${id}/`, document.baseURI).href);
+    if (ticket !== loadTicket) return;
+    bundle = loaded;
     showModelInfo();
     renderSupported();
     setStatus('Ready. Take a photo, choose an image or try a sample.');
@@ -93,17 +100,15 @@ async function useModel(id) {
     heroScan();
     if (lastFile) await analyse(lastFile);
   } catch (err) {
-    setStatus(`Could not load the model (${err.message}). Check your connection and reload the page.`, 'error');
+    if (ticket === loadTicket) setStatus(`Could not load the model (${err.message}). Check your connection and reload the page.`, 'error');
   } finally {
-    $('model').disabled = false;
+    if (ticket === loadTicket) $('model').disabled = false;
   }
 }
 
 async function init() {
   $('legend').style.background = legendGradient();
   $('hero-legend').style.background = legendGradient();
-  tilt($('scan-card'));
-  parallax($('scan-card'), 36);
   showNetwork();
   addEventListener('online', showNetwork);
   addEventListener('offline', showNetwork);
@@ -154,7 +159,11 @@ async function pixelsOf(file) {
 }
 
 async function analyse(file) {
-  if (!bundle || !file) return;
+  if (!file) return;
+  if (!bundle) {
+    setStatus('The model is still loading. Try again in a moment.', 'error');
+    return;
+  }
   if (file.type && !file.type.startsWith('image/')) {
     setStatus(`"${file.name}" is not an image. Choose a JPG, PNG or WebP photo of a leaf.`, 'error');
     return;
@@ -164,6 +173,7 @@ async function analyse(file) {
     return;
   }
   lastFile = file;
+  const ticket = ++analysisTicket;
   setStatus('Looking at the leaf…', 'loading');
   try {
     const t0 = performance.now();
@@ -171,6 +181,7 @@ async function analyse(file) {
     const pre = preprocess(px.rgba, px.w, px.h, bundle.meta);
     const tPre = performance.now() - t0;
     const out = await run(bundle, pre.input);
+    if (ticket !== analysisTicket) return;
     const probs = softmax(out.logits);
     const ranked = topK(probs, 5);
     const ood = bundle.ood ? oodScore(out.features, bundle.meta.feature_shape, bundle.ood) : null;
@@ -179,11 +190,11 @@ async function analyse(file) {
     setStatus('Done. The result is below.');
     $('result').hidden = false;
     $('verdict').scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
-    enter([$('verdict'), $('remedy'), $('why'), $('expert')]);
+    enter([$('verdict'), $('why'), $('remedy'), $('expert')]);
     growBars($('verdict'));
-    await faithfulnessCheck();
+    await faithfulnessCheck(ticket);
   } catch (err) {
-    setStatus(err.message, 'error');
+    if (ticket === analysisTicket) setStatus(err.message, 'error');
   }
 }
 
@@ -227,13 +238,14 @@ function cropChips() {
 function renderSupported() {
   const crops = cropsList();
   $('supported').innerHTML = `
-    <h2>What it can check</h2>
+    <h2>Supported crops</h2>
     <p>${crops.length} crops and ${bundle.meta.classes.length} conditions (healthy included). Other plants, fruits, flowers, whole fields and non-plant photos are <b>not supported</b>.
     The app warns you when a photo looks unlike its training leaves, but it can miss a leaf of another plant, so check the list.</p>
     ${cropChips()}
     <details class="more"><summary>Show all ${bundle.meta.classes.length} conditions</summary>
       <dl class="croplist">${crops.map(([crop, conds]) => `<div><dt>${esc(crop)}</dt><dd>${conds.map(esc).join(' · ')}</dd></div>`).join('')}</dl>
     </details>`;
+  smoothDetails($('supported'));
 }
 
 function isUnsure() {
@@ -255,7 +267,14 @@ function renderVerdict() {
       Retake it: one leaf, close up, filling most of the frame, on a plain background, in daylight.</p>
       <p><button type="button" class="btn small" id="anyway">Show the model's guess anyway</button></p>
       <p class="muted small">Unusualness ${current.ood.score.toFixed(2)}; the warning shows above ${bundle.ood.threshold.toFixed(2)}. <a href="./explain.html#unsupported">How this check works</a></p>`;
-    $('anyway').onclick = () => { current.showAnyway = true; render(); };
+    $('anyway').onclick = () => {
+      current.showAnyway = true;
+      render();
+      // The button is gone now; keep keyboard focus on the new answer.
+      const h = $('verdict').querySelector('h2');
+      h.tabIndex = -1;
+      h.focus();
+    };
     return;
   }
   if (isUnsure()) {
@@ -352,19 +371,23 @@ function renderRemedy() {
     <p class="note small">${esc(bundle.remedies.disclaimer)}${bundle.remedies.reviewed ? '' : ' This advice has not yet been reviewed by a plant pathologist.'}</p>`;
 }
 
-async function faithfulnessCheck() {
+async function faithfulnessCheck(ticket) {
   const el = $('faithful');
   $('faithbadge').textContent = 'Heatmap check: running…';
   $('faithbadge').className = 'chip';
-  el.innerHTML = '<p class="muted small">Running the check…</p>';
-  const s = bundle.meta.image_size;
-  const cls = current.ranked[0][0];
-  const heat = heatmap(current.out.features, bundle.meta.feature_shape, bundle.weight, cls, s);
+  el.innerHTML = '<p class="status loading small">Running the check…</p>';
+  // Work on this analysis only, even if another photo is chosen while the check runs.
+  const c = current;
+  const b = bundle;
+  const s = b.meta.image_size;
+  const cls = c.ranked[0][0];
+  const heat = heatmap(c.out.features, b.meta.feature_shape, b.weight, cls, s);
   const top = pixelsToHide(heat, HIDE_FRACTION);
   const rand = pixelsToHide(heat, HIDE_FRACTION, true, 0);
-  const pTop = softmax((await run(bundle, hidePixels(current.pre.input, s, top))).logits)[cls];
-  const pRand = softmax((await run(bundle, hidePixels(current.pre.input, s, rand))).logits)[cls];
-  const p = current.probs[cls];
+  const pTop = softmax((await run(b, hidePixels(c.pre.input, s, top))).logits)[cls];
+  const pRand = softmax((await run(b, hidePixels(c.pre.input, s, rand))).logits)[cls];
+  if (ticket !== analysisTicket) return;
+  const p = c.probs[cls];
   const dropTop = p - pTop;
   const dropRand = p - pRand;
   const passes = dropTop > dropRand + 0.05;
@@ -379,8 +402,8 @@ async function faithfulnessCheck() {
       Confidence in "${esc(label(cls))}" was ${pct(p)}. Hiding the bright area: ${change(dropTop)};
       hiding a random area: ${change(dropRand)}.
       ${passes ? 'The highlighted area really drove the answer.' : 'The heatmap may not show what really drove this answer; trust it less.'}</p>`;
-  drawHidden($('hidTop'), current.pre.crop, s, top);
-  drawHidden($('hidRand'), current.pre.crop, s, rand);
+  drawHidden($('hidTop'), c.pre.crop, s, top);
+  drawHidden($('hidRand'), c.pre.crop, s, rand);
 }
 
 function renderHood() {
@@ -455,7 +478,15 @@ function renderHood() {
   }
 }
 
-// ---------- hero: the model scanning a real sample leaf ----------
+// ---------- the live specimen: the model's heatmap on a real sample leaf ----------
+
+/** Show the heatmap over the left `v`% of the sample photo (the rest stays the plain photo). */
+function setCompare(v) {
+  $('hero-canvas').style.clipPath = `inset(0 ${100 - v}% 0 0)`;
+  $('specimen-handle').style.left = `${v}%`;
+  $('compare').value = String(Math.round(v));
+  $('compare').setAttribute('aria-valuetext', `Heatmap over ${Math.round(v)}% of the photo`);
+}
 
 let heroDone = false;
 function heroScan() {
@@ -472,15 +503,18 @@ function heroScan() {
       const out = await run(bundle, pre.input);
       const [[best, p]] = topK(softmax(out.logits), 1);
       const s = bundle.meta.image_size;
-      const canvas = $('hero-canvas');
-      drawOverlay(canvas, pre.crop, heatmap(out.features, bundle.meta.feature_shape, bundle.weight, best, s), s, 0.62);
+      // Both halves show the exact square the model saw, so photo and heatmap line up.
+      drawRGB($('hero-photo'), pre.crop, s);
+      drawOverlay($('hero-canvas'), pre.crop, heatmap(out.features, bundle.meta.feature_shape, bundle.weight, best, s), s, 0.62);
       chip.querySelector('strong').textContent = label(best);
       chip.querySelector('.muted').textContent = `${pct(p)} confidence, computed just now`;
-      if (reduceMotion.matches) { canvas.style.clipPath = 'none'; return; }
-      const line = document.querySelector('.scan-card .scanline');
-      animate(line, { top: ['0%', '100%'], opacity: [1, 1, 0] }, { duration: 1.6, ease: 'easeInOut' });
-      animate(canvas, { clipPath: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'] }, { duration: 1.6, ease: 'easeInOut' });
-      animate(chip, { scale: [0.92, 1], opacity: [0.6, 1] }, { type: 'spring', stiffness: 260, damping: 18, delay: 1.4 });
+      $('specimen').classList.add('ready');
+      $('compare').disabled = false;
+      $('compare').addEventListener('input', (e) => setCompare(Number(e.target.value)));
+      // One slow wipe from left to right, then rest halfway so both views are visible.
+      if (reduceMotion.matches) { setCompare(55); return; }
+      animate(0, 100, { duration: 1.4, ease: [0.65, 0, 0.35, 1], onUpdate: setCompare })
+        .then(() => animate(100, 55, { duration: 0.9, ease: [0.22, 1, 0.36, 1], onUpdate: setCompare }));
     } catch {
       chip.querySelector('strong').textContent = 'Sample leaf';
       chip.querySelector('.muted').textContent = 'the live example could not run';
@@ -519,11 +553,26 @@ $('again').addEventListener('click', () => {
   $('pick').scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth' });
   $('gallery').focus({ preventScroll: true });
 });
-const drop = document.body;
-drop.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dragging'); });
-drop.addEventListener('dragleave', () => document.body.classList.remove('dragging'));
-drop.addEventListener('drop', (e) => {
+
+// Drag and drop anywhere on the page. dragenter/dragleave also fire for every child
+// element crossed, so count them instead of toggling, or the highlight flickers.
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes('Files');
+addEventListener('dragenter', (e) => {
+  if (!hasFiles(e)) return;
+  dragDepth++;
+  document.body.classList.add('dragging');
+});
+addEventListener('dragleave', (e) => {
+  if (!hasFiles(e)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) document.body.classList.remove('dragging');
+});
+addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return;
   e.preventDefault();
+  dragDepth = 0;
   document.body.classList.remove('dragging');
   analyse(e.dataTransfer.files[0]);
 });

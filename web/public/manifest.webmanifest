@@ -8,8 +8,8 @@
   "display": "standalone",
   "orientation": "any",
   "lang": "en",
-  "background_color": "#f4f2e9",
-  "theme_color": "#f4f2e9",
+  "background_color": "#e9f1e8",
+  "theme_color": "#e9f1e8",
   "categories": ["utilities", "education"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
