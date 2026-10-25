@@ -1,42 +1,58 @@
 <div align="center">
 
-# 🌿 crop-disease-xai
+# crop-disease-xai
 
 **Do compressed crop-disease models still explain themselves faithfully on a phone?**
 
-Crop-leaf disease classification with **Grad-CAM++** explanations, a staged **compression** pipeline
-(structured pruning → INT8 quantization), remedies for every class, and an **offline web app** that
-diagnoses and explains on any phone or desktop, using a closed-form, gradient-free Grad-CAM++ that
-runs in a single forward pass.
+Crop-leaf disease classification with Grad-CAM++ explanations, a staged compression study
+(structured pruning and INT8 quantization), and an offline web app that diagnoses a leaf and shows
+its evidence on any phone or desktop, using a closed-form Grad-CAM++ that needs no gradients.
 
+[![Tests](https://github.com/ranjanvrma/crop-disease-xai/actions/workflows/ci.yml/badge.svg)](https://github.com/ranjanvrma/crop-disease-xai/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
-![timm](https://img.shields.io/badge/models-timm-orange)
-![ExecuTorch](https://img.shields.io/badge/on--device-ExecuTorch-4B8BBE)
-![Status](https://img.shields.io/badge/status-experiments%20done%2C%20on--device%20benchmarks%20pending-blue)
+![ONNX Runtime Web](https://img.shields.io/badge/in%20the%20browser-ONNX%20Runtime%20Web-005CED)
 
-### 🌐 Live demo: **[crop-disease-xai.onrender.com](https://crop-disease-xai.onrender.com/)**
-
-Upload or photograph a leaf to get a diagnosis, the Grad-CAM++ heatmap computed in your browser, and
-remedies. It works offline once loaded.
+**[Live demo](https://crop-disease-xai.onrender.com/)** ·
+[How it explains itself](https://crop-disease-xai.onrender.com/explain.html) ·
+[Results](https://crop-disease-xai.onrender.com/results.html) ·
+[Developer guide](docs/DEVELOPMENT.md)
 
 </div>
-
-> **Picking up this project?** Start with [HANDOFF.md](HANDOFF.md): current state, rules, setup, next steps and the decision log.
 
 ---
 
 ## Contents
-- [Overview](#overview)
-- [Approach](#approach)
-- [Results](#results)
-- [Getting started](#getting-started)
-- [Reproducibility](#reproducibility)
-- [Repository layout](#repository-layout)
-- [Project status & plan](#project-status--plan)
-- [Datasets](#datasets)
 
-## Overview
+- [Highlights](#highlights)
+- [Why this project](#why-this-project)
+- [How it works](#how-it-works)
+- [Results](#results)
+- [Quick start](#quick-start)
+- [Repository layout](#repository-layout)
+- [Reproducibility](#reproducibility)
+- [Roadmap](#roadmap)
+- [Limitations](#limitations)
+- [Contributing](#contributing)
+- [Citation](#citation)
+- [License and acknowledgements](#license-and-acknowledgements)
+
+## Highlights
+
+- **Explanations that run on the device.** Grad-CAM++ rewritten in closed form, so it needs only one
+  forward pass. It matches `pytorch-grad-cam` to about 1e-6 and runs in the browser and on INT8 models.
+- **A measured answer to the research question.** INT8 quantization keeps the heatmaps close to the
+  original model's (Spearman 0.92); structured pruning changes them substantially (0.37–0.46).
+- **An honest lab-to-field result.** About 97% accuracy on lab photos, but only 22–24% on real field
+  photos, and the heatmaps help show why: the models lean on the plain lab background.
+- **An offline web app for any phone.** It gives a diagnosis or says "not sure", shows a heatmap with
+  a live faithfulness check, warns about photos that are not a supported crop, and offers remedies
+  for all 38 classes. Photos never leave the device.
+- **Reproducible by construction.** Every number comes from versioned result files, with three seeds,
+  a pinned data split and a guard that keeps the field test set out of training.
+
+## Why this project
 
 A farmer with a basic phone and patchy internet can't rely on a cloud model, and has no way to check
 *why* an app says a leaf has late blight. Heatmap explanations can show the reasoning, but only if they
@@ -44,40 +60,43 @@ are **faithful**, and only if they survive the compression needed to run on chea
 
 This project measures that directly:
 
-1. **Accuracy vs. size:** how much accuracy each compression stage costs (structured pruning at 50/70%, INT8 quantization, and both stacked).
-2. **Explanation quality under compression:** whether Grad-CAM++ maps stay faithful and stable, and which compression stage changes them most.
-3. **On-device cost:** whether Grad-CAM++ runs in real time on a mid-range Android phone (Pixel 6a).
-4. **Lab → field gap:** models trained on clean lab images (PlantVillage) are evaluated on real field photos (PlantDoc), and the heatmaps show what the models rely on.
+1. **Accuracy vs. size:** what each compression stage costs (structured pruning at 50% and 70%,
+   INT8 quantization, and both stacked).
+2. **Explanation quality under compression:** whether Grad-CAM++ maps stay faithful and stable, and
+   which compression stage changes them most.
+3. **Lab-to-field gap:** models trained on clean lab images (PlantVillage) are tested on real field
+   photos (PlantDoc), and the heatmaps show what the models rely on.
+4. **On-device cost** (planned): Grad-CAM++ latency and memory on a mid-range Android phone.
 
-The study is deliberately **compute-lean**: it compresses one mobile model (MobileNetV3) and compares
-it with EfficientNet-B0 and a from-scratch CNN, so everything runs on a free-tier GPU.
+The study is deliberately compute-lean: it compresses one mobile model (MobileNetV3) and compares it
+with EfficientNet-B0 and a small CNN trained from scratch, so everything runs on a free-tier GPU.
 
-## Approach
+## How it works
 
 ```mermaid
 flowchart LR
-    A[PlantVillage<br/>lab images] --> B[Dedup + stratified split<br/>field-leak guard]
-    F[PlantDoc + own photos<br/>field test only] --> B
-    B --> C[Baselines<br/>MobileNetV3 · EfficientNet-B0<br/>scratch CNN]
+    A[PlantVillage<br/>lab images] --> B[Deduplicate + stratified split<br/>field-leak guard]
+    F[PlantDoc<br/>field test only] --> B
+    B --> C[Baselines<br/>MobileNetV3 · EfficientNet-B0<br/>small CNN]
     C --> D[Explanations<br/>Grad-CAM++ · Grad-CAM · Score-CAM]
-    C --> E[Compression of MobileNetV3<br/>pruning 50/70% · INT8]
+    C --> E[Compress MobileNetV3<br/>pruning 50/70% · INT8]
     E --> D
-    D --> G[Faithfulness · localisation<br/>stability vs. parent]
-    E --> H[ExecuTorch export<br/>Pixel 6a benchmarks]
-    C --> W[Offline web app<br/>any phone or desktop<br/>heatmap + remedies]
+    D --> G[Faithfulness · stability<br/>vs. the uncompressed parent]
+    C --> W[Offline web app<br/>heatmap · checks · remedies]
 ```
 
-### Gradient-free Grad-CAM++ on the device
+### Grad-CAM++ without gradients
 
-Mobile runtimes only run forward passes, but Grad-CAM++ needs gradients. Every CNN here ends in
-global average pooling followed by a single linear layer, so the gradient of class score $y_c$ with
-respect to feature map $A^k$ (size $H \times W$) is a constant:
+Mobile and browser runtimes only run forward passes, but Grad-CAM++ needs gradients. Every network
+here ends in global average pooling followed by a single linear layer, so the gradient of class score
+$y_c$ with respect to feature map $A^k$ (size $H \times W$) is a constant:
 
 $$
 g_k = \frac{\partial y_c}{\partial A^k_{ij}} = \frac{W_{ck}}{HW}
 $$
 
-Substituting into the Grad-CAM++ weights gives a closed form that needs only the feature maps and the classifier weights:
+Substituting it into the Grad-CAM++ weights gives a closed form that needs only the feature maps and
+the classifier weights:
 
 $$
 \alpha_k = \frac{g_k^2}{2g_k^2 + g_k^3 \sum_{ij} A^k_{ij}}, \qquad
@@ -85,49 +104,51 @@ w_k = HW \cdot \mathrm{ReLU}(g_k)\,\alpha_k, \qquad
 L_c = \mathrm{ReLU}\Big(\sum_k w_k A^k\Big)
 $$
 
-The exported model returns logits and the final feature maps, and the app computes the heatmap from
-these in one pass. The implementation (`src/cropxai/explain/closed_form.py`) is tested to match
-`pytorch-grad-cam` for every CNN in the study (`tests/test_explain.py`), so it is an exact
-reformulation, not an approximation.
+The exported model returns its scores and its final feature maps, and the heatmap is computed from
+them in the same pass. The Python implementation (`src/cropxai/explain/closed_form.py`) is tested
+against `pytorch-grad-cam` for every network, and the browser version (`web/src/xai.js`) is tested
+against the Python one, so it is an exact reformulation, not an approximation.
 
 ### Explanation metrics
-- **Faithfulness:** deletion / insertion AUC, Average Drop, Increase in Confidence, ROAD (with a batched GPU implementation of ROAD's noisy linear imputation, tested against the reference implementation). Score-CAM, the most expensive method, is computed for the uncompressed models only.
-- **Localisation:** pointing game and IoU against hand-drawn lesion masks.
-- **Stability under compression:** Spearman rank correlation, SSIM and top-10% IoU against the uncompressed parent's heatmaps.
+
+- **Faithfulness:** deletion and insertion AUC, Average Drop, Increase in Confidence, and ROAD (with
+  a batched GPU implementation of ROAD's noisy linear imputation, tested against the reference).
+- **Localisation:** pointing game and IoU against lesion masks, once masks exist.
+- **Stability under compression:** Spearman rank correlation, SSIM and top-10% IoU against the
+  uncompressed parent's heatmaps.
 
 ## Results
 
-Every table below is generated by `scripts/make_tables.py` from `results/metrics/**.json`.
-Values are mean ± sample std over 3 seeds; `(n=1)` marks the single scratch-CNN run.
+The tables are generated by `scripts/make_tables.py` from `results/metrics/**.json`. Values are the
+mean ± sample standard deviation over 3 seeds; `(n=1)` marks the single small-CNN run.
 
-### Key findings so far
-1. **Lab → field gap.** MobileNetV3 reaches 96.7% on PlantVillage test images but only 21.8% on real
-   PlantDoc field photos (EfficientNet-B0: 96.1% → 24.3%). The from-scratch CNN is the most extreme
-   case: 99.8% in the lab, 15.4% in the field (single run).
-2. **Field-style augmentation barely helps.** Fully fine-tuning MobileNetV3 with blur, noise, shadows,
-   occlusions and other photo corruptions (`mnv3_ft_field`) lifts lab accuracy to 99.4% but field
+### Key findings
+
+1. **Lab-to-field gap.** MobileNetV3 reaches 96.7% on PlantVillage test images but only 21.8% on
+   PlantDoc field photos (EfficientNet-B0: 96.1% → 24.3%; small CNN: 99.8% → 15.4%, single run).
+2. **Field-style augmentation barely helps.** Fully fine-tuning MobileNetV3 with blur, noise,
+   shadows and other photo corruptions (`mnv3_ft_field`) lifts lab accuracy to 99.4% but field
    accuracy only from 21.8% to 23.4%.
-3. **INT8 keeps the explanations; pruning does not.** INT8 quantization costs 2.5 points of lab
-   accuracy (96.7% → 94.1%) and its heatmaps stay close to the parent's (Spearman 0.92, SSIM 0.90).
-   50% structured pruning drops lab accuracy to 69.3% with a 2-epoch fine-tune (88.9% with 8 epochs),
-   and its heatmaps diverge strongly (Spearman 0.37–0.46); at 70% the field-set rank correlation is
-   about zero.
-4. **Grad-CAM was more faithful than Grad-CAM++** on the uncompressed feature-extraction models, on
-   every faithfulness metric (e.g. test deletion AUC 0.431 vs 0.476 for MobileNetV3), and roughly
-   equal on the fully fine-tuned model.
+3. **INT8 keeps the explanations; pruning does not.** INT8 costs 2.5 points of lab accuracy
+   (96.7% → 94.1%) and its heatmaps stay close to the parent's (Spearman 0.92, SSIM 0.90). 50%
+   structured pruning drops lab accuracy to 69.3% (88.9% after an 8-epoch fine-tune) and its heatmaps
+   diverge strongly (Spearman 0.37–0.46); at 70% the field-set rank correlation is about zero.
+4. **Grad-CAM was more faithful than Grad-CAM++** on the frozen-backbone models, on every
+   faithfulness metric (e.g. deletion AUC 0.431 vs 0.476 for MobileNetV3), and about equal on the
+   fully fine-tuned model.
 5. **Closed-form Grad-CAM++ is exact:** it matches `pytorch-grad-cam` to about 1e-6 on every trained
-   seed, without gradients, which is what lets it run on INT8 models, in the browser and on phones.
+   seed, which is what lets it run on INT8 models and in the browser.
 
 > **Reading the pruned rows of Table 2:** their low deletion AUC does not mean better faithfulness.
 > Pruned models are much less confident, so every probability curve starts lower; their insertion
 > AUC, Average Drop and Increase in Confidence are all worse. Compare faithfulness only between models
-> of similar accuracy, or look at Table 3.
+> of similar accuracy, or use Table 3.
 
-### Table 1 — Accuracy & efficiency
-Field "strict" = argmax over all 38 classes (what the app does); "restricted" = argmax over the
-classes present in the field set. Weights = parameters × 4 bytes (float) or × 1 byte (INT8). Desktop
-latency is not reported for INT8 models (they run reference ops on a desktop); phone latency is added
-with the Android app.
+### Table 1: accuracy and efficiency
+
+Field "strict" is the argmax over all 38 classes (what the app does); "restricted" is the argmax over
+the classes present in the field set. Weights are parameters × 4 bytes (float) or × 1 byte (INT8).
+Desktop latency is not reported for INT8 models, which run reference kernels on a desktop.
 
 <!-- table1:start -->
 | Model | Params (M) | Weights (MB) | Top-1 PV test (%) | Macro-F1 PV test (%) | ECE PV test | Field top-1 strict (%) | Field top-1 restricted (%) | Desktop GPU latency (ms) | Desktop CPU latency (ms) |
@@ -145,9 +166,10 @@ with the Android app.
 | scratch_cnn | 1.18 (n=1) | 4.73 (n=1) | 99.76 (n=1) | 99.66 (n=1) | 0.003 (n=1) | 15.42 (n=1) | 17.41 (n=1) | 0.80 (n=1) | 12.1 (n=1) |
 <!-- table1:end -->
 
-### Table 2 — Explanation quality
-The model's predicted class is explained on a fixed, seeded image sample (the same images for every
-model). Pointing game and IoU need lesion masks, which exist only for the project's own field photos.
+### Table 2: explanation quality
+
+The predicted class is explained on a fixed, seeded image sample (the same images for every model).
+Pointing game and IoU need lesion masks, which do not exist yet.
 
 <!-- table2:start -->
 | Model | Method | Del. AUC ↓ (test) | Ins. AUC ↑ (test) | Avg. Drop % ↓ (test) | Inc. Conf. % ↑ (test) | ROAD ↑ (test) | Del. AUC ↓ (field) | Ins. AUC ↑ (field) | Pointing ↑ (field) | IoU ↑ (field) |
@@ -173,7 +195,8 @@ model). Pointing game and IoU need lesion masks, which exist only for the projec
 | scratch_cnn | Score-CAM | 0.289 (n=1) | 0.896 (n=1) | 29.0 (n=1) | 2.0 (n=1) | 0.189 (n=1) | 0.230 (n=1) | 0.591 (n=1) | — | — |
 <!-- table2:end -->
 
-### Table 3 — Stability under compression (vs. uncompressed parent)
+### Table 3: stability under compression
+
 Closed-form Grad-CAM++ maps of each compressed variant compared with the uncompressed parent's, for
 the class the parent predicts, on the same images.
 
@@ -189,44 +212,50 @@ the class the parent predicts, on the same images.
 | mnv3_fe_p70_int8 | 0.209 ± 0.014 | 0.407 ± 0.009 | 0.103 ± 0.003 | -0.021 ± 0.009 | 0.395 ± 0.008 | 0.057 ± 0.005 |
 <!-- table3:end -->
 
-### Table 4 — On-device (Pixel 6a)
-| Variant | Disk (MB) | Cold start | Latency median | Latency p95 | Heatmap latency | Peak memory | Battery / N inf. |
-|---|---|---|---|---|---|---|---|
-| — | — | — | — | — | — | — | — |
+## Quick start
 
-## Getting started
+### Try it
 
-### Install (local: tests and data tooling)
+Open **[crop-disease-xai.onrender.com](https://crop-disease-xai.onrender.com/)** and photograph a
+leaf, choose an image, or try a sample. It works offline after the first visit and can be installed
+as an app.
+
+### Run the web app locally
+
+The trained model bundles are committed in `web/public/models/`, so no training is needed.
+
 ```bash
 git clone https://github.com/ranjanvrma/crop-disease-xai.git
-cd crop-disease-xai
-python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[train,compress,dev]"   # on Linux/macOS: .venv/bin/python
-.venv/Scripts/python -m pytest
+cd crop-disease-xai/web
+npm ci
+npm run dev          # http://localhost:5173
+npm run build        # static site in web/dist/, deployable to any static host
 ```
+
+See [`web/README.md`](web/README.md) for how the app is built, tested and deployed.
+
+### Set up the Python pipeline
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -e ".[train,compress,dev,web]"   # Windows: .venv\Scripts\python
+.venv/bin/python -m pytest -q
+```
+
 The unit tests use small synthetic images, so they run without the datasets.
 
 ### Data
-Download PlantVillage (colour) and PlantDoc and lay them out as described in
-[`data/README.md`](data/README.md). The train / val / test / field-test split is already pinned in
-[`splits/`](splits/), so everyone uses the same split.
 
-### Offline web app
-Live at **[crop-disease-xai.onrender.com](https://crop-disease-xai.onrender.com/)** (deployed from
-`render.yaml`). [`web/`](web/) is an installable app (PWA) for any phone or desktop browser: photo → diagnosis or
-"not sure" → Grad-CAM++ heatmap computed on the device → a live check that the heatmap is faithful →
-an exact breakdown of the class score → remedies. See [`web/README.md`](web/README.md).
-```bash
-cd web && npm ci && npm run dev        # the 4 model bundles are already in web/public/models/
-python scripts/export_web.py --config configs/experiment/mnv3_fe.yaml --seed 0   # re-export a bundle (CPU)
-```
+Download PlantVillage (colour) and PlantDoc and lay them out as described in
+[`data/README.md`](data/README.md). The train / validation / test / field-test split is pinned in
+[`splits/`](splits/), so everyone uses the same images.
 
 ### Train and evaluate
-Training runs on **Google Colab**: open [`notebooks/colab_bootstrap.ipynb`](notebooks/colab_bootstrap.ipynb)
-and choose *Runtime → Run all*. It works through every experiment and seed in priority order, skips
-finished work, and resumes after a disconnect.
 
-Each step is also a plain script that takes a config plus optional `key=value` overrides:
+Training runs on Google Colab: open [`notebooks/colab_bootstrap.ipynb`](notebooks/colab_bootstrap.ipynb)
+and choose *Runtime → Run all*. It works through every experiment and seed in priority order, skips
+finished work, and resumes after a disconnect. Each step is also a plain script that takes a config
+plus optional `key=value` overrides:
 
 ```bash
 python scripts/prepare_data.py       --config configs/experiment/prepare_data.yaml
@@ -235,84 +264,103 @@ python scripts/evaluate.py           --config configs/experiment/mnv3_fe_p50.yam
 python scripts/verify_closed_form.py --config configs/experiment/mnv3_fe_p50.yaml --seed 0
 python scripts/explain.py            --config configs/experiment/mnv3_fe_p50.yaml --seed 0
 python scripts/make_tables.py
+python scripts/export_web.py         --config configs/experiment/mnv3_ft_field.yaml --seed 0 --out web/public/models/mnv3_ft_field
+```
+
+## Repository layout
+
+```
+configs/      shared YAML pieces and one file per experiment
+src/cropxai/  data · models · train · explain · eval · compress · export · utils
+scripts/      command-line entry points
+knowledge/    remedies for all 38 classes
+web/          offline web app and demo site (Vite, ONNX Runtime Web)
+splits/       pinned split manifest (paths, labels, image hashes)
+notebooks/    Colab runner (generated by build_colab_notebook.py)
+results/      metrics JSON (source of truth for every table) and generated tables
+docs/         developer guide and research notes
+tests/        unit and end-to-end tests on synthetic data
 ```
 
 ## Reproducibility
-- **Config-driven:** one YAML per experiment in [`configs/experiment/`](configs/experiment/), composed from shared pieces via `inherits:`. No hyperparameters are hard-coded in scripts.
-- **Three seeds** for every reported number, with seeded data loading and deterministic kernels where available.
-- **Untouched field test set:** PlantDoc and own photos are never used for training or tuning. A guard (`src/cropxai/data/guard.py`) blocks them from training splits, including near-duplicate images (perceptual hashing), and only final evaluation may load them.
-- **Pinned split:** the manifest in `splits/` records every image's relative path, label, split and hash.
-- **Traceable numbers:** every result JSON stores the full config, git commit and library versions it came from. Runs are logged to Weights & Biases.
-- **Safe re-runs:** finished training stores a fingerprint of its settings, so a seed is retrained only if its training settings change.
 
-## Repository layout
+- **Config-driven:** one YAML per experiment in [`configs/experiment/`](configs/experiment/), composed
+  from shared pieces with `inherits:`. No hyperparameters are hard-coded in scripts.
+- **Three seeds** for every reported number, with seeded data loading and deterministic kernels where
+  available.
+- **Untouched field test set:** PlantDoc is never used for training or tuning. A guard
+  (`src/cropxai/data/guard.py`) blocks it from training splits, including near-duplicates found by
+  perceptual hashing.
+- **Pinned split:** `splits/` records every image's relative path, label, split and hash.
+- **Traceable numbers:** every result JSON stores the full config, git commit and library versions.
+- **Safe re-runs:** finished training stores a fingerprint of its settings, so a seed is retrained only
+  when its training settings change.
+
+## Roadmap
+
+| Area | Status |
+|---|---|
+| Data pipeline, deduplication, pinned split, field-leak guard | Done |
+| Baselines (MobileNetV3, EfficientNet-B0, small CNN), training with resume, evaluation | Done |
+| Grad-CAM++, Grad-CAM, Score-CAM, faithfulness metrics, closed-form Grad-CAM++ | Done |
+| Compression of MobileNetV3: pruning 50/70% (with and without fine-tuning) and INT8, 7 variants × 3 seeds | Done |
+| Explanation quality and stability under compression (Tables 2–3) | Metrics done; summary figure and write-up in progress |
+| Field-robust model `mnv3_ft_field` | Done |
+| Offline web app and demo site with 4 models and remedies for all 38 classes | [Live](https://crop-disease-xai.onrender.com/); remedies await expert review |
+| On-device benchmarks on a Pixel 6a (ExecuTorch export) | Planned |
+| Paper, released weights and lesion annotations | Planned |
+
+Help is welcome on all of these; see [CONTRIBUTING.md](CONTRIBUTING.md). Open tasks that need a
+person rather than code: collecting labelled field photos with lesion masks, re-running the literature
+search ([`docs/research-gap.md`](docs/research-gap.md)), and an expert review of
+[`knowledge/remedies.yaml`](knowledge/remedies.yaml).
+
+## Limitations
+
+- Compression is studied on one architecture (MobileNetV3) whose parent was trained with a frozen
+  backbone. Uniform structured pruning of such a parent loses a lot of accuracy; other architectures
+  and fully fine-tuned parents are future work.
+- There is no knowledge-distillation stage: the study covers pruning and quantization only.
+- The small CNN is a single run, not a 3-seed result.
+- PlantDoc is web-scraped and contains some images that are not single leaves. They are kept as-is,
+  because removing images after seeing results would amount to tuning on the test set.
+- All committed results come from one machine (an RTX 5070 Ti laptop GPU; the versions are recorded
+  in every result file).
+- The web app is a research prototype, not a certified diagnostic tool, and its remedies have not
+  been reviewed by a plant pathologist.
+
+## Contributing
+
+Contributions are welcome: bug reports, fixes, app improvements, remedy reviews and new experiments.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) first; it covers the setup and the research rules that
+keep the results trustworthy. To report a security problem, see [SECURITY.md](SECURITY.md).
+
+## Citation
+
+If you use this code or its results, please cite it. GitHub's *Cite this repository* button uses
+[`CITATION.cff`](CITATION.cff):
+
+```bibtex
+@software{crop_disease_xai,
+  author  = {Verma, Ranjan and Narkhede, Rahul},
+  title   = {crop-disease-xai: Grad-CAM++ explanations for compressed crop-disease models, on the device},
+  year    = {2026},
+  url     = {https://github.com/ranjanvrma/crop-disease-xai},
+  license = {MIT}
+}
 ```
-configs/      base, data, model, train, explain and per-experiment YAMLs
-src/cropxai/  data · models · train · explain · eval · compress · export · utils
-scripts/      command-line entry points (incl. export_web.py)
-knowledge/    remedies for every class
-web/          offline web app (PWA) for phones and desktop
-splits/       pinned split manifest (paths, labels, image hashes)
-notebooks/    Colab runner (generated by build_colab_notebook.py)
-results/      metrics JSON (source of truth for all tables) and figures
-research/     paper (LaTeX) and research notes
-tests/        unit + end-to-end tests on synthetic data
-```
 
-## Project status & plan
+## License and acknowledgements
 
-*Last updated: 25 October 2026.*
+The code is released under the [MIT License](LICENSE). The datasets are **not** covered by it; follow
+each dataset's own licence and citation requirements.
 
-| Phase | What | Status |
-|---|---|---|
-| 1 | Data pipeline, dedup, pinned split, field-leak guard | ✅ Done |
-| 2 | Models, training (with resume) and evaluation | ✅ Done |
-| 3 | Grad-CAM++ / Grad-CAM / Score-CAM, faithfulness metrics, closed-form Grad-CAM++ | ✅ Done |
-| — | Baselines: `mnv3_fe`, `effnet_b0_fe` (3 seeds each), `scratch_cnn` (1 run) | ✅ Done, results committed |
-| 4 | Compression of MobileNetV3: pruning 50/70% (2- and 8-epoch fine-tune) and INT8, alone and stacked | ✅ Done, 7 variants × 3 seeds, results committed |
-| 5 | Core experiment: explanation quality and stability under compression | 🟡 Metrics done (Tables 2–3); centrepiece figure and write-up pending |
-| — | Field-robust model `mnv3_ft_field` (full fine-tune + field-style augmentation) | ✅ Done, 3 seeds |
-| 6 | On-device closed-form Grad-CAM++ | ✅ Runs in the web app; tested equal to the Python version |
-| — | Offline web app and demo site, with 4 real models and remedies for all 38 classes | ✅ Live at **[crop-disease-xai.onrender.com](https://crop-disease-xai.onrender.com/)**; remedies await expert review |
-| 7 | ExecuTorch export and Pixel 6a benchmarks (Table 4) | ⬜ Not started |
-| 8 | Paper and release (weights, lesion annotations, demo video) | ⬜ Not started |
-
-### What has been built
-- **Data:** PlantVillage (training) and PlantDoc (field test only), perceptual-hash deduplication, a stratified 80/10/10 split pinned in `splits/` (43,424 / 5,428 / 5,428, plus 2,522 PlantDoc field images), and a guard that keeps field data out of training and tuning.
-- **Models:** MobileNetV3 (head replaced by GAP + one linear layer, so the closed-form heatmap is exact), EfficientNet-B0, and a from-scratch CNN.
-- **Training:** config-driven, with per-epoch resume, a settings fingerprint so finished runs are never retrained by accident, and a one-click Colab queue (`notebooks/`).
-- **Explanations:** Grad-CAM++, Grad-CAM and Score-CAM; deletion/insertion AUC, Average Drop, Increase in Confidence and ROAD (batched on the GPU); pointing game and IoU when lesion masks exist; stability against the uncompressed parent.
-- **Compression:** structured pruning with Torch-Pruning that keeps the GAP + linear head, and INT8 post-training quantization (PT2E, XNNPACK scheme) exported with two outputs, so INT8 models are explained gradient-free.
-- **Web app (`web/`):** an offline PWA for any phone or desktop. Photo → diagnosis or "not sure" (threshold tuned on validation data) → Grad-CAM++ heatmap computed in the browser → a live faithfulness check → remedies. It also warns when a photo is not a supported crop. Preprocessing and heatmaps are tested equal to the Python pipeline.
-- **Remedies (`knowledge/remedies.yaml`):** guidance for all 38 classes, clearly marked as not yet reviewed by a plant pathologist.
-- **Quality gates:** unit and end-to-end tests, browser tests for the web app, CI on pull requests and pushes to `main`, and a name check that keeps AI-assistant attribution out of the repository.
-
-### What is left, in order
-1. **Phase 5 write-up:** a centrepiece figure (accuracy vs. size and explanation quality vs. size, from `results/metrics/`), and the analysis of which compression stage changes explanations most.
-2. **Phase 7: on-device benchmarks:** ExecuTorch export (XNNPACK) of the chosen variant in its own environment; Pixel 6a measurements of size, cold start, latency median/p95, heatmap latency and peak memory (Table 4).
-3. **Phase 8: release:** paper in `research/paper/` with generated tables; trained weights and lesion annotations published; demo video.
-4. **Optional, only if it is worth the GPU time:** a pruning method or parent that degrades less (e.g. pruning a fully fine-tuned model), stated with its cost first.
-
-### Needs to be done by hand
-- [ ] Collect 150–300 own field leaf photos (classes PlantVillage covers), labels confirmed by a plant expert
-- [ ] Draw lesion masks on them (CVAT or Label Studio); until then, pointing game and IoU stay empty
-- [ ] Re-run the literature search before writing up (`research/notes/gap.md`)
-- [ ] Have a plant pathologist or extension officer review `knowledge/remedies.yaml`
-- [ ] Add a license to the repository
-
-### Known limitations
-- Compression is studied on one architecture (MobileNetV3) whose parent was trained by feature extraction (frozen backbone). Uniform structured pruning of such a parent loses a lot of accuracy; other architectures and fully fine-tuned parents are future work.
-- No knowledge-distillation stage: the study covers pruning and quantization only.
-- The scratch CNN is a single run, not a 3-seed result.
-- PlantDoc is web-scraped and contains some images that are not single leaves (e.g. fruit, whole fields). They are kept as-is: removing images after seeing results would amount to tuning on the test set.
-- Feature-extraction runs use 6 epochs, chosen from the validation curve only.
-- All committed results come from one machine (RTX 5070 Ti laptop GPU; float runs with torch 2.14, INT8 runs with torch 2.10, recorded in every result file). Desktop latency is from that GPU; phone latency (Table 4) is the number that matters for deployment.
-
-## Datasets
 | Dataset | Role | Source |
 |---|---|---|
-| PlantVillage (colour), 38 classes | training / validation / in-domain test | [spMohanty/PlantVillage-Dataset](https://github.com/spMohanty/PlantVillage-Dataset) |
-| PlantDoc | field test only, mapped onto shared PlantVillage classes | [pratikkayal/PlantDoc-Dataset](https://github.com/pratikkayal/PlantDoc-Dataset) |
-| Own field photos + lesion masks | field test only | collected for this project |
+| PlantVillage (colour), 38 classes | training, validation, lab test | [spMohanty/PlantVillage-Dataset](https://github.com/spMohanty/PlantVillage-Dataset) |
+| PlantDoc | field test only, mapped onto the shared PlantVillage classes | [pratikkayal/PlantDoc-Dataset](https://github.com/pratikkayal/PlantDoc-Dataset) |
 
-Please follow each dataset's own license and citation requirements.
+Built with [PyTorch](https://pytorch.org/), [timm](https://github.com/huggingface/pytorch-image-models),
+[pytorch-grad-cam](https://github.com/jacobgil/pytorch-grad-cam),
+[Torch-Pruning](https://github.com/VainF/Torch-Pruning), [ONNX Runtime Web](https://onnxruntime.ai/),
+[Vite](https://vite.dev/), [Motion](https://motion.dev/) and [Lucide](https://lucide.dev/) icons.

@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+title: "crop-disease-xai: Grad-CAM++ explanations for compressed crop-disease models, on the device"
+authors:
+  - family-names: Verma
+    given-names: Ranjan
+  - family-names: Narkhede
+    given-names: Rahul
+version: 0.1.0
+date-released: 2026-10-26
+license: MIT
+repository-code: "https://github.com/ranjanvrma/crop-disease-xai"
+url: "https://crop-disease-xai.onrender.com/"
+keywords:
+  - explainable AI
+  - Grad-CAM++
+  - plant disease
+  - model compression
+  - pruning
+  - quantization
+  - on-device inference
+  - WebAssembly

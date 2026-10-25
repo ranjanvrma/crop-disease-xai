@@ -1,11 +1,21 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "cropxai"
 version = "0.1.0"
 description = "Crop-leaf disease detection with Grad-CAM++ explanations under model compression, deployed on-device."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Ranjan Verma" }, { name = "Rahul Narkhede" }]
+keywords = ["explainable-ai", "grad-cam", "plant-disease", "model-compression", "onnx"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 requires-python = ">=3.10"
 # Core deps: enough to build splits and run the unit tests.
 dependencies = [
@@ -41,8 +51,13 @@ web = [
     "onnx>=1.16",
     "onnxruntime>=1.18",
 ]
-# The ExecuTorch export environment is deliberately NOT an extra here:
-# it must live in its own environment. See requirements/export.txt.
+# The planned ExecuTorch export (Phase 7) is deliberately NOT an extra here:
+# it must live in its own environment because its torch pin can conflict.
+
+[project.urls]
+Homepage = "https://crop-disease-xai.onrender.com/"
+Repository = "https://github.com/ranjanvrma/crop-disease-xai"
+Issues = "https://github.com/ranjanvrma/crop-disease-xai/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

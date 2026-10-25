@@ -1,1 +1,1 @@
-"""On-device export (ExecuTorch). Runs in its own environment; see requirements/export.txt."""
+"""Model export for the offline web app (web.py)."""

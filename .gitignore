@@ -22,12 +22,9 @@ results/figures/*.png
 results/figures/*.pdf
 !results/figures/.gitkeep
 
-# Web / Android build output
+# Web build output
 node_modules/
 web/dist/
-android/**/build/
-android/.gradle/
-android/local.properties
 
 # OS / editors
 .DS_Store

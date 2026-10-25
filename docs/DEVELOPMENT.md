@@ -1,9 +1,8 @@
-# Project handoff: crop-disease-xai
+# Developer guide: crop-disease-xai
 
-> **For the next person and their AI coding assistant.** Read this file completely before changing
-> anything. It records the current state, the rules, how to run everything, what is left, and every
-> non-obvious decision made so far. If you use an AI assistant, start it with the prompt in
-> [§13](#13-starter-prompt-for-an-ai-assistant).
+> **For contributors.** Read this before changing anything substantial. It records the current
+> state, the research rules, how to run everything, what is left, and every non-obvious decision made
+> so far. For how to send a change, see [CONTRIBUTING.md](../CONTRIBUTING.md).
 >
 > *State as of 25 October 2026: all branches merged into `main`; live demo at https://crop-disease-xai.onrender.com/.*
 
@@ -22,7 +21,6 @@
 10. [What is left, in order](#10-what-is-left-in-order)
 11. [Gotchas and known issues](#11-gotchas-and-known-issues)
 12. [Decision log](#12-decision-log)
-13. [Starter prompt for an AI assistant](#13-starter-prompt-for-an-ai-assistant)
 
 ---
 
@@ -103,12 +101,12 @@ These have been followed since day one. Keep them.
 4. **No hard-coded hyperparameters.** One YAML per experiment in `configs/experiment/`, composed via
    `inherits:`. Scripts take `--config` plus `key=value` overrides.
 5. **Don't invent citations**, and don't claim the research gap is still open. The literature search
-   must be re-run by a human before writing (`research/notes/gap.md`).
+   must be re-run by a human before writing (`docs/research-gap.md`).
 6. **The app is the offline web app in `web/`** (ONNX Runtime Web, WebAssembly), so it runs on any
    phone model and on desktop from one codebase (owner's decision, 20 Oct). Its model comes only from
    `scripts/export_web.py`, and `web/test/parity.test.mjs` must keep passing. **The research Android
    benchmark uses ExecuTorch only** (XNNPACK backend); PyTorch Mobile is deprecated, never use it. The
-   ExecuTorch environment must be separate from training (`requirements/export.txt`); read current
+   ExecuTorch environment must be separate from training (create it in Phase 7); read current
    ExecuTorch docs before writing that export code.
 7. **Never hand-edit `notebooks/colab_bootstrap.ipynb`.** Edit `notebooks/build_colab_notebook.py`
    and run it (`python notebooks/build_colab_notebook.py`).
@@ -119,7 +117,7 @@ These have been followed since day one. Keep them.
    `git config core.hooksPath .githooks`
 9. **Keep it compute-lean.** Any new GPU work must state its estimated cost first. Don't reintroduce
    the dropped models (§12) without a reason and a budget.
-10. Research (`research/`, `notebooks/`) and the app (`web/`) stay separate. The app reads only the
+10. Research (`notebooks/`, `scripts/`) and the app (`web/`) stay separate. The app reads only the
     exported bundle; any accuracy it shows comes from `results/metrics/` via the export script.
 11. **Remedies** (`knowledge/remedies.yaml`) are general guidance until a plant pathologist reviews
     them; keep `reviewed: false` until then, and never present them as verified.
@@ -159,7 +157,7 @@ web/          offline web app (Vite + ONNX Runtime Web); see web/README.md
 splits/       manifest_v1.csv (every image: relative path, label, source, split, dHash), classes, summary
 notebooks/    build_colab_notebook.py → colab_bootstrap.ipynb (the Colab runner)
 results/      metrics/<kind>/<run>_seed<n>.json (source of truth) · figures/ (git-ignored PNGs) · tables/
-research/     notes/gap.md (literature-search log, to be filled by a human) · paper/ (empty)
+docs/         DEVELOPMENT.md (this guide) · research-gap.md (literature-search log, to be filled by a human)
 tests/        synthetic-data unit + end-to-end tests (no datasets needed)
 data/         git-ignored datasets (README explains the layout)
 ```
@@ -385,14 +383,14 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
    - Which stage changes explanations most (answer from Table 3: pruning ≫ INT8), and whether
      compression changes field accuracy (shortcut learning).
 2. **Phase 7: on-device benchmarks**
-   - ExecuTorch export in a **separate** environment (`requirements/export.txt`; pin ExecuTorch,
+   - ExecuTorch export in a **separate** environment (create it then; pin ExecuTorch,
      torch and torchao together after reading the current docs). Export the chosen variant with two
      outputs (logits, feature maps); quantize with ExecuTorch's own XNNPACK quantizer; lower to
      XNNPACK; produce a `.pte`; store the classifier weights as an asset.
    - A minimal Android benchmark harness (the user-facing app is the web app).
    - Pixel 6a: size on disk, cold start, latency median + p95 after warm-up, heatmap latency, peak
      memory; many iterations, fixed device. Fill README Table 4 from a results JSON (`kind=ondevice`).
-3. **Phase 8: paper and release:** LaTeX in `research/paper/` (tables generated from results);
+3. **Phase 8: paper and release:** LaTeX in a new `paper/` folder (tables generated from results);
    weights and lesion annotations on Hugging Face; demo video of the live site.
 4. **Optional (state the GPU cost first):** compress a fully fine-tuned parent (e.g. `mnv3_ft_field`)
    or use a gentler pruning schedule, to test whether the pruning collapse is due to the frozen-backbone
@@ -402,9 +400,8 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
      put them in `data/field/images/<PlantVillage class>/` and re-run `prepare_data.py`.
    - Lesion masks (CVAT or Label Studio, binary PNG, same stem) in `data/field/masks/...`; without
      them pointing game and IoU stay "—".
-   - Re-run the literature search and fill `research/notes/gap.md`.
+   - Re-run the literature search and fill `docs/research-gap.md`.
    - Plant pathologist / extension officer review of `knowledge/remedies.yaml`, then `reviewed: true`.
-   - Add a license (none yet; the owner must choose).
 
 ---
 
@@ -470,25 +467,3 @@ aggregates seeds into README Tables 1–3 (between `<!-- tableN:start/end -->` m
 **Limitations this creates (state them in the paper):** compression is studied on one architecture
 whose backbone was trained by feature extraction (not full fine-tuning); there is no distillation
 stage; the scratch CNN is a single run.
-
----
-
-## 13. Starter prompt for an AI assistant
-
-Paste this as the first message in a new session, opened in the repository root:
-
-```
-You are continuing an existing research codebase: crop-disease-xai (crop-leaf disease
-classification + Grad-CAM++ explanations + pruning/INT8 compression + an offline web app for all
-phones and desktop (web/), with an ExecuTorch Android build for research benchmarks only). Before
-doing anything:
-1. Read HANDOFF.md completely, then README.md, data/README.md, configs/ and src/cropxai/.
-2. Run the tests: python -m pytest -q -p no:warnings (expect 45 passed).
-3. Summarise back to me: the current state, the rules in HANDOFF.md §3, and the next action in §10.
-Follow HANDOFF.md §3 strictly: never fabricate results; 3 seeds; never touch the field test set for
-training or tuning; config-driven; never hand-edit the Colab notebook (edit
-notebooks/build_colab_notebook.py); no AI-assistant attribution in commits or files; state the GPU
-cost of any new training before doing it; check current ExecuTorch docs before export work; don't
-invent citations. Work in small milestones and commit each one. Ask me before any decision that
-changes the research scope.
-```

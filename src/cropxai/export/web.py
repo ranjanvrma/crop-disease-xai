@@ -54,7 +54,7 @@ def write_classifier(classifier: nn.Linear, path: Path) -> None:
 def tune_unsure_threshold(probs: torch.Tensor, labels: torch.Tensor, target_accuracy: float) -> float:
     """Smallest confidence threshold whose accepted VALIDATION predictions reach ``target_accuracy``.
 
-    Tuned on val only (HANDOFF rule 3). Val images are lab photos, so this does
+    Tuned on val only (docs/DEVELOPMENT.md, rule 3). Val images are lab photos, so this does
     not protect against the lab-to-field shift; the app says so.
     """
     conf, pred = probs.max(dim=1)
